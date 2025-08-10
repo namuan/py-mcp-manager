@@ -1,11 +1,10 @@
-import json
 import sys
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGridLayout, QSpacerItem, QSizePolicy,
-    QDialog, QMessageBox, QFileDialog, QTextEdit
+    QDialog, QMessageBox
 )
 
 from models import ServerConfig
@@ -19,7 +18,7 @@ class MCPManagerWindow(QMainWindow):
         self.setWindowTitle("MCP Manager")
         self.setGeometry(100, 100, 1200, 800)
         self.setObjectName("MainWindow")
-        
+
         self.process_manager = ProcessManager()
         self.servers = []  # List of ServerConfig objects
         self.server_rows = {}  # server_id: row_index
@@ -56,7 +55,7 @@ class MCPManagerWindow(QMainWindow):
         self._create_footer()
 
         self.setStyleSheet(self._get_style_sheet())
-        
+
         # Load sample data for demonstration
         self._load_sample_data()
 
@@ -91,7 +90,7 @@ class MCPManagerWindow(QMainWindow):
         line.setFrameShadow(QFrame.Shadow.Sunken)
         line.setObjectName("Separator")
         self.container_layout.addWidget(line)
-        
+
         # Connect process manager signals
         self.process_manager.status_changed.connect(self._update_server_status)
         self.process_manager.output_received.connect(self._handle_server_output)
@@ -143,12 +142,12 @@ class MCPManagerWindow(QMainWindow):
         self.grid_layout.setVerticalSpacing(15)
 
         # Set column stretch
-        self.grid_layout.setColumnStretch(0, 0) # Status
-        self.grid_layout.setColumnStretch(1, 1) # Server ID
-        self.grid_layout.setColumnStretch(2, 1) # Command
-        self.grid_layout.setColumnStretch(3, 1) # Arguments
-        self.grid_layout.setColumnStretch(4, 1) # Env Variables
-        self.grid_layout.setColumnStretch(5, 0) # Actions
+        self.grid_layout.setColumnStretch(0, 0)  # Status
+        self.grid_layout.setColumnStretch(1, 1)  # Server ID
+        self.grid_layout.setColumnStretch(2, 1)  # Command
+        self.grid_layout.setColumnStretch(3, 1)  # Arguments
+        self.grid_layout.setColumnStretch(4, 1)  # Env Variables
+        self.grid_layout.setColumnStretch(5, 0)  # Actions
 
         self._create_server_list_header()
 
@@ -170,13 +169,13 @@ class MCPManagerWindow(QMainWindow):
             label = QLabel(header_text)
             label.setObjectName("GridHeader")
             self.grid_layout.addWidget(label, 0, i, Qt.AlignmentFlag.AlignLeft)
-            
+
         # Add a row for the "No servers" message
         self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
         self.no_servers_label.setObjectName("NoServersLabel")
         self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
         self.no_servers_label.hide()
-        
+
         # Show message immediately if no servers
         if not self.servers:
             self.no_servers_label.show()
@@ -185,7 +184,7 @@ class MCPManagerWindow(QMainWindow):
         # Remove "no servers" message if shown
         if self.no_servers_label.isVisible():
             self.no_servers_label.hide()
-        
+
         # Status
         status_label = QLabel("Offline")
         if server_config.status == "online":
@@ -251,10 +250,9 @@ class MCPManagerWindow(QMainWindow):
         line_separator.setFrameShape(QFrame.Shape.HLine)
         line_separator.setObjectName("Separator")
         self.grid_layout.addWidget(line_separator, row + 1, 0, 1, 6)
-        
+
         # Store the row index for this server
         self.server_rows[server_config.id] = row
-
 
     def _create_footer(self):
         footer_widget = QWidget()
@@ -270,7 +268,7 @@ class MCPManagerWindow(QMainWindow):
         footer_layout.addStretch()
 
         self.main_layout.addWidget(footer_widget)
-        
+
     def _load_sample_data(self):
         """Load sample server configurations for demonstration"""
         sample_server1 = ServerConfig(
@@ -281,7 +279,7 @@ class MCPManagerWindow(QMainWindow):
             env_vars={"PORT": "3000"},
             working_dir=""
         )
-        
+
         sample_server2 = ServerConfig(
             id="postgres",
             name="Postgres",
@@ -290,13 +288,13 @@ class MCPManagerWindow(QMainWindow):
             env_vars={"POSTGRES_PASSWORD": "secret"},
             working_dir=""
         )
-        
+
         self.servers = [sample_server1, sample_server2]
-        
+
         # Add servers to UI
         for i, server in enumerate(self.servers):
             self._add_server_row(server, i + 2)
-            
+
     def _add_new_server(self):
         """Open dialog to add a new server"""
         dialog = ServerEditorDialog(parent=self)
@@ -305,7 +303,7 @@ class MCPManagerWindow(QMainWindow):
             self.servers.append(new_config)
             row = len(self.servers) + 1
             self._add_server_row(new_config, row)
-            
+
     def _edit_server(self, server_config):
         """Open dialog to edit existing server"""
         dialog = ServerEditorDialog(server_config, self)
@@ -314,15 +312,15 @@ class MCPManagerWindow(QMainWindow):
             # Update the server config
             server_config.__dict__.update(updated_config.__dict__)
             # TODO: Refresh the row
-            
+
     def _delete_server(self, server_config):
         """Delete a server configuration"""
         # Stop server if running
         self.process_manager.stop_server(server_config.id)
-        
+
         # Remove from list
         self.servers = [s for s in self.servers if s.id != server_config.id]
-        
+
         # Remove from UI
         row = self.server_rows.get(server_config.id)
         if row:
@@ -331,44 +329,44 @@ class MCPManagerWindow(QMainWindow):
                 item = self.grid_layout.itemAtPosition(row, col)
                 if item and item.widget():
                     item.widget().deleteLater()
-            
+
             # Remove separator
             sep_row = row + 1
             for col in range(6):
                 item = self.grid_layout.itemAtPosition(sep_row, col)
                 if item and item.widget():
                     item.widget().deleteLater()
-            
+
             # Remove row mapping
             del self.server_rows[server_config.id]
-            
+
         # Show "no servers" message if empty
         if not self.servers:
             self.no_servers_label.show()
-            
+
     def _toggle_server(self, server_config):
         """Start or stop a server"""
         if server_config.status == "offline":
             self.process_manager.start_server(server_config)
         else:
             self.process_manager.stop_server(server_config.id)
-            
+
     def _check_statuses(self):
         """Check status of all servers"""
         for server in self.servers:
             status = self.process_manager.get_status(server.id)
             self._update_server_status(server.id, status)
-            
+
     def _update_server_status(self, server_id, status):
         """Update UI for a server's status"""
         server = next((s for s in self.servers if s.id == server_id), None)
         if not server:
             return
-            
+
         server.status = status
         if server.status_label:
             server.status_label.setText(status.capitalize())
-            
+
             # Update style
             if status == "online":
                 server.status_label.setObjectName("StatusOnline")
@@ -378,143 +376,80 @@ class MCPManagerWindow(QMainWindow):
                 server.status_label.setObjectName("StatusOffline")
             server.status_label.style().unpolish(server.status_label)
             server.status_label.style().polish(server.status_label)
-            
+
     def _handle_server_output(self, server_id, output):
         """Handle server output with optional notification for important messages"""
         print(f"Server {server_id} output: {output}")
-        
+
         # Check for important keywords in output
         important_keywords = ["error", "fail", "warning", "exception"]
         if any(kw in output.lower() for kw in important_keywords):
             # Find server name for notification
             server = next((s for s in self.servers if s.id == server_id), None)
             server_name = server.name if server else server_id
-            
+
             # Show warning notification
             QMessageBox.warning(
                 self,
                 "Server Output",
                 f"Server '{server_name}' reported:\n\n{output[:500]}"  # Limit message length
             )
-        
+
     def _handle_server_error(self, server_id, error):
         """Handle server errors with user notification"""
         print(f"Server {server_id} error: {error}")
         self._update_server_status(server_id, "error")
-        
+
         # Find server name for notification
         server = next((s for s in self.servers if s.id == server_id), None)
         server_name = server.name if server else server_id
-        
+
         # Show critical error notification
         QMessageBox.critical(
             self,
             "Server Error",
             f"Server '{server_name}' encountered an error:\n\n{error}"
         )
-        
+
     def _view_logs(self, server_config):
         """View logs for a server"""
         from log_viewer_dialog import LogViewerDialog
         logs = self.process_manager.get_logs(server_config.id)
         dialog = LogViewerDialog(server_config.id, logs, self)
         dialog.exec()
-        
+
     def _view_json(self):
         """Show JSON representation of all servers with export option"""
-        configs = [s.to_dict() for s in self.servers]
-        json_str = json.dumps(configs, indent=2)
-        
-        # Show in a dialog
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Server Configuration JSON")
-        dialog.setMinimumSize(600, 400)
-        layout = QVBoxLayout()
-        
-        text_edit = QTextEdit()
-        text_edit.setPlainText(json_str)
-        text_edit.setReadOnly(True)
-        layout.addWidget(text_edit)
-        
-        # Add export button
-        export_btn = QPushButton("Export to File")
-        export_btn.setObjectName("ActionButton")
-        export_btn.clicked.connect(self._export_to_json)
-        layout.addWidget(export_btn)
-        
-        dialog.setLayout(layout)
+        from json_io import build_json_view_dialog
+        dialog = build_json_view_dialog(self, self.servers, self._export_to_json)
         dialog.exec()
-        
+
     def _import_from_json(self):
         """Import server configurations from JSON"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Import Server Configuration",
-            "",
-            "JSON Files (*.json)"
-        )
-        if not file_path:
+        from json_io import select_and_load_servers
+        new_servers = select_and_load_servers(self)
+        if not new_servers:
             return
-            
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                
-            # Validate the JSON structure
-            if not isinstance(data, list):
-                raise ValueError("Invalid configuration format: expected a list of servers")
-                
-            new_servers = []
-            for item in data:
-                if not isinstance(item, dict):
-                    raise ValueError("Each server configuration must be a dictionary")
-                # Create ServerConfig from dictionary
-                new_servers.append(ServerConfig.from_dict(item))
-                
-            # Stop all running servers
-            for server in self.servers:
-                self.process_manager.stop_server(server.id)
-                
-            # Replace the current server list
-            self.servers = new_servers
-            
-            # Clear the current UI grid
-            self._clear_servers_grid()
-            
-            # Rebuild the UI with the new servers
-            for i, server in enumerate(self.servers):
-                self._add_server_row(server, i + 2)
-                
-            QMessageBox.information(self, "Import Successful", f"Imported {len(new_servers)} servers")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Import Error", f"Failed to import configuration: {str(e)}")
-            
+
+        # Stop all running servers
+        for server in self.servers:
+            self.process_manager.stop_server(server.id)
+
+        # Replace the current server list
+        self.servers = new_servers
+
+        # Clear the current UI grid
+        self._clear_servers_grid()
+
+        # Rebuild the UI with the new servers
+        for i, server in enumerate(self.servers):
+            self._add_server_row(server, i + 2)
+
     def _export_to_json(self):
         """Export server configurations to JSON file"""
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Server Configuration",
-            "",
-            "JSON Files (*.json)"
-        )
-        if not file_path:
-            return
-            
-        try:
-            # Ensure .json extension
-            if not file_path.endswith('.json'):
-                file_path += '.json'
-                
-            configs = [s.to_dict() for s in self.servers]
-            with open(file_path, 'w') as f:
-                json.dump(configs, f, indent=2)
-                
-            QMessageBox.information(self, "Export Successful", "Configuration exported successfully")
-            
-        except Exception as e:
-            QMessageBox.critical(self, "Export Error", f"Failed to export configuration: {str(e)}")
-            
+        from json_io import select_and_save_servers
+        select_and_save_servers(self, self.servers)
+
     def _clear_servers_grid(self):
         """Clear the servers grid except the header and separator"""
         # Remove all rows except the first two (header and separator)
@@ -523,130 +458,19 @@ class MCPManagerWindow(QMainWindow):
                 item = self.grid_layout.itemAtPosition(row, col)
                 if item and item.widget():
                     item.widget().deleteLater()
-                    
+
         # Clear the server_rows dictionary
         self.server_rows = {}
-        
+
         # Show the "no servers" message if the list is empty
         if not self.servers:
             self.no_servers_label.show()
 
     def _get_style_sheet(self):
-        return """
-            #MainWindow {
-                background-color: #F8F9FA;
-            }
-            #ContainerWidget {
-                background-color: #FFFFFF;
-                border: 1px solid #DEE2E6;
-                border-radius: 8px;
-            }
-            #MainTitle {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 28px;
-                font-weight: 600;
-                color: #212529;
-            }
-            #SectionTitle {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 20px;
-                font-weight: 600;
-                color: #212529;
-            }
-            #HeaderButton, #ActionButton {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                background-color: #FFFFFF;
-                color: #212529;
-                border: 1px solid #CED4DA;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 14px;
-            }
-            #HeaderButton:hover, #ActionButton:hover {
-                background-color: #F8F9FA;
-            }
-            #ViewJsonButton {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                background-color: #E9ECEF;
-                color: #212529;
-                border: 1px solid #E9ECEF;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 14px;
-            }
-             #ViewJsonButton:hover {
-                background-color: #DEE2E6;
-                border-color: #DEE2E6;
-            }
-            #AddServerButton {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                background-color: #E9ECEF;
-                color: #212529;
-                border: 1px solid #CED4DA;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 14px;
-                font-weight: 500;
-            }
-            #AddServerButton:hover {
-                background-color: #DEE2E6;
-            }
-            .QFrame#Separator {
-                background-color: #E9ECEF;
-                height: 1px;
-            }
-            #GridHeader {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                color: #495057;
-            }
-            QLabel {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 14px;
-                color: #212529;
-            }
-            #StatusOffline {
-                background-color: #DC3545;
-                color: white;
-                border-radius: 10px;
-                padding: 4px 10px;
-                font-size: 12px;
-                font-weight: 500;
-            }
-            #StatusOnline {
-                background-color: #28A745;
-                color: white;
-                border-radius: 10px;
-                padding: 4px 10px;
-                font-size: 12px;
-                font-weight: 500;
-            }
-            #StatusError {
-                background-color: #FFC107;
-                color: black;
-                border-radius: 10px;
-                padding: 4px 10px;
-                font-size: 12px;
-                font-weight: 500;
-            }
-            #Footer {
-                background-color: #F8F9FA;
-                border-top: 1px solid #DEE2E6;
-            }
-            #FooterLabel {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 14px;
-                color: #6C757D;
-            }
-            #NoServersLabel {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-                font-size: 16px;
-                color: #6C757D;
-                font-style: italic;
-                padding: 20px;
-            }
-        """
+        # Delegated to external module for maintainability
+        from ui_styles import get_style_sheet
+        return get_style_sheet()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
