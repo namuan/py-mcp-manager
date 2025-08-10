@@ -1,0 +1,11 @@
+[
+  {
+    "id": "trello-mcp-server",
+    "name": "trello-mcp-server",
+    "command": "/opt/homebrew/bin/uv",
+    "arguments": ["run", "trello-task-manager-mcp"],
+    "env_vars": {},
+    "working_dir": "/Users/nnn/workspace/trello-task-manager-mcp",
+    "status": "offline"
+  }
+]

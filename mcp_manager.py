@@ -1,4 +1,6 @@
 import sys
+import os
+import json
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
@@ -13,6 +15,8 @@ from server_editor_dialog import ServerEditorDialog
 
 
 class MCPManagerWindow(QMainWindow):
+    CONFIG_FILE = "mcp_servers.json"  # Config file in the same folder
+    
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MCP Manager")
@@ -56,8 +60,8 @@ class MCPManagerWindow(QMainWindow):
 
         self.setStyleSheet(self._get_style_sheet())
 
-        # Load sample data for demonstration
-        self._load_sample_data()
+        # Load servers from config file
+        self._load_servers_from_file()
 
     def _create_header(self):
         header_widget = QWidget()
@@ -175,10 +179,8 @@ class MCPManagerWindow(QMainWindow):
         self.no_servers_label.setObjectName("NoServersLabel")
         self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
         self.no_servers_label.hide()
-
-        # Show message immediately if no servers
-        if not self.servers:
-            self.no_servers_label.show()
+        
+        # Note: Don't show the message here - it will be handled after servers are loaded
 
     def _add_server_row(self, server_config, row):
         # Remove "no servers" message if shown
@@ -221,6 +223,7 @@ class MCPManagerWindow(QMainWindow):
         start_stop_button.setObjectName("ActionButton")
         start_stop_button.setCursor(Qt.CursorShape.PointingHandCursor)
         start_stop_button.clicked.connect(lambda: self._toggle_server(server_config))
+        server_config.start_stop_button = start_stop_button  # Store reference for status updates
 
         edit_button = QPushButton("Edit")
         edit_button.setObjectName("ActionButton")
@@ -269,6 +272,34 @@ class MCPManagerWindow(QMainWindow):
 
         self.main_layout.addWidget(footer_widget)
 
+    def _load_servers_from_file(self):
+        """Load server configurations from the config file"""
+        if os.path.exists(self.CONFIG_FILE):
+            try:
+                with open(self.CONFIG_FILE, 'r') as f:
+                    data = json.load(f)
+                
+                if isinstance(data, list):
+                    self.servers = []
+                    for item in data:
+                        if isinstance(item, dict):
+                            self.servers.append(ServerConfig.from_dict(item))
+                    
+                    # Add servers to UI
+                    for i, server in enumerate(self.servers):
+                        self._add_server_row(server, i + 2)
+                    
+                    # Show no servers message if list is empty
+                    if not self.servers:
+                        self._show_no_servers_message()
+                    
+                    return
+            except Exception as e:
+                print(f"Error loading config file: {e}")
+        
+        # If no config file exists or loading failed, load sample data
+        self._load_sample_data()
+    
     def _load_sample_data(self):
         """Load sample server configurations for demonstration"""
         sample_server1 = ServerConfig(
@@ -294,6 +325,22 @@ class MCPManagerWindow(QMainWindow):
         # Add servers to UI
         for i, server in enumerate(self.servers):
             self._add_server_row(server, i + 2)
+        
+        # Show no servers message if list is empty (shouldn't happen with sample data)
+        if not self.servers:
+            self._show_no_servers_message()
+        
+        # Save the sample data to file for future use
+        self._save_servers_to_file()
+    
+    def _save_servers_to_file(self):
+        """Save current server configurations to the config file"""
+        try:
+            configs = [s.to_dict() for s in self.servers]
+            with open(self.CONFIG_FILE, 'w') as f:
+                json.dump(configs, f, indent=2)
+        except Exception as e:
+            print(f"Error saving config file: {e}")
 
     def _add_new_server(self):
         """Open dialog to add a new server"""
@@ -303,6 +350,7 @@ class MCPManagerWindow(QMainWindow):
             self.servers.append(new_config)
             row = len(self.servers) + 1
             self._add_server_row(new_config, row)
+            self._save_servers_to_file()
 
     def _edit_server(self, server_config):
         """Open dialog to edit existing server"""
@@ -312,6 +360,7 @@ class MCPManagerWindow(QMainWindow):
             # Update the server config
             server_config.__dict__.update(updated_config.__dict__)
             # TODO: Refresh the row
+            self._save_servers_to_file()
 
     def _delete_server(self, server_config):
         """Delete a server configuration"""
@@ -342,12 +391,17 @@ class MCPManagerWindow(QMainWindow):
 
         # Show "no servers" message if empty
         if not self.servers:
-            self.no_servers_label.show()
+            self._show_no_servers_message()
+        
+        # Save changes to file
+        self._save_servers_to_file()
 
     def _toggle_server(self, server_config):
         """Start or stop a server"""
         if server_config.status == "offline":
             self.process_manager.start_server(server_config)
+            # Automatically open log viewer to show startup progress
+            self._view_logs(server_config)
         else:
             self.process_manager.stop_server(server_config.id)
 
@@ -364,6 +418,8 @@ class MCPManagerWindow(QMainWindow):
             return
 
         server.status = status
+        
+        # Update status label
         if server.status_label:
             server.status_label.setText(status.capitalize())
 
@@ -376,6 +432,13 @@ class MCPManagerWindow(QMainWindow):
                 server.status_label.setObjectName("StatusOffline")
             server.status_label.style().unpolish(server.status_label)
             server.status_label.style().polish(server.status_label)
+        
+        # Update start/stop button text
+        if hasattr(server, 'start_stop_button') and server.start_stop_button:
+            if status == "online":
+                server.start_stop_button.setText("Stop")
+            else:
+                server.start_stop_button.setText("Start")
 
     def _handle_server_output(self, server_id, output):
         """Handle server output with optional notification for important messages"""
@@ -444,6 +507,9 @@ class MCPManagerWindow(QMainWindow):
         # Rebuild the UI with the new servers
         for i, server in enumerate(self.servers):
             self._add_server_row(server, i + 2)
+        
+        # Save the imported servers to file
+        self._save_servers_to_file()
 
     def _export_to_json(self):
         """Export server configurations to JSON file"""
@@ -464,6 +530,25 @@ class MCPManagerWindow(QMainWindow):
 
         # Show the "no servers" message if the list is empty
         if not self.servers:
+            self._show_no_servers_message()
+    
+    def _show_no_servers_message(self):
+        """Show the no servers message, creating it if necessary"""
+        try:
+            # Check if the label still exists and is valid
+            if hasattr(self, 'no_servers_label') and self.no_servers_label is not None:
+                self.no_servers_label.show()
+            else:
+                # Recreate the label if it was deleted
+                self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
+                self.no_servers_label.setObjectName("NoServersLabel")
+                self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
+                self.no_servers_label.show()
+        except RuntimeError:
+            # Handle case where the widget was deleted
+            self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
+            self.no_servers_label.setObjectName("NoServersLabel")
+            self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
             self.no_servers_label.show()
 
     def _get_style_sheet(self):

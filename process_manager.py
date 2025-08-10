@@ -1,6 +1,6 @@
 import os
 import signal
-from PyQt6.QtCore import QObject, QProcess, pyqtSignal
+from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, pyqtSignal
 from models import ServerConfig
 
 class ProcessManager(QObject):
@@ -25,6 +25,14 @@ class ProcessManager(QObject):
         
         # Initialize logs for this server
         self.logs[server_id] = []
+        self.logs[server_id].append(f"Starting server '{server_id}'...")
+        self.logs[server_id].append(f"Command: {config.command} {' '.join(config.arguments)}")
+        if config.working_dir:
+            self.logs[server_id].append(f"Working directory: {config.working_dir}")
+        if config.env_vars:
+            self.logs[server_id].append(f"Environment variables: {config.env_vars}")
+        self.logs[server_id].append("--- Server Output ---")
+        self.logs_updated.emit(server_id)
         
         # Create and configure process
         process = QProcess()
@@ -56,11 +64,34 @@ class ProcessManager(QObject):
         )
         
         # Start process
-        process.start()
-        self.processes[server_id] = process
-        self.configs[server_id] = config
-        self.status_changed.emit(server_id, "starting")
-        return True
+        try:
+            process.start()
+            
+            # Check if process started successfully
+            if not process.waitForStarted(3000):  # Wait up to 3 seconds
+                error_msg = f"Failed to start process: {process.errorString()}"
+                self.logs[server_id].append(f"ERROR: {error_msg}")
+                self.logs_updated.emit(server_id)
+                self.error_occurred.emit(server_id, error_msg)
+                return False
+            
+            self.processes[server_id] = process
+            self.configs[server_id] = config
+            
+            # Add startup log entry
+            if server_id in self.logs:
+                self.logs[server_id].append("Process started successfully")
+                self.logs_updated.emit(server_id)
+            
+            self.status_changed.emit(server_id, "starting")
+            return True
+            
+        except Exception as e:
+            error_msg = f"Exception starting process: {str(e)}"
+            self.logs[server_id].append(f"ERROR: {error_msg}")
+            self.logs_updated.emit(server_id)
+            self.error_occurred.emit(server_id, error_msg)
+            return False
         
     def get_logs(self, server_id):
         """Get logs for a server"""
@@ -121,8 +152,14 @@ class ProcessManager(QObject):
         """Handle process state changes"""
         if state == QProcess.ProcessState.Running:
             self.status_changed.emit(server_id, "online")
+            if server_id in self.logs:
+                self.logs[server_id].append("Server is now running")
+                self.logs_updated.emit(server_id)
         elif state == QProcess.ProcessState.NotRunning:
             self.status_changed.emit(server_id, "offline")
+            if server_id in self.logs:
+                self.logs[server_id].append("Server stopped")
+                self.logs_updated.emit(server_id)
     
     def _handle_finished(self, server_id, exit_code, exit_status):
         """Clean up when process finishes"""
