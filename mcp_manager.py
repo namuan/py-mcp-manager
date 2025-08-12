@@ -441,38 +441,21 @@ class MCPManagerWindow(QMainWindow):
                 server.start_stop_button.setText("Start")
 
     def _handle_server_output(self, server_id, output):
-        """Handle server output with optional notification for important messages"""
+        """Handle server output without showing alerts"""
         print(f"Server {server_id} output: {output}")
-
-        # Check for important keywords in output
-        important_keywords = ["error", "fail", "warning", "exception"]
-        if any(kw in output.lower() for kw in important_keywords):
-            # Find server name for notification
-            server = next((s for s in self.servers if s.id == server_id), None)
-            server_name = server.name if server else server_id
-
-            # Show warning notification
-            QMessageBox.warning(
-                self,
-                "Server Output",
-                f"Server '{server_name}' reported:\n\n{output[:500]}"  # Limit message length
-            )
+        # Store output in ProcessManager logs
+        if hasattr(self.process_manager, 'logs') and server_id in self.process_manager.logs:
+            self.process_manager.logs[server_id].append(output)
+            self.process_manager.logs_updated.emit(server_id)
 
     def _handle_server_error(self, server_id, error):
-        """Handle server errors with user notification"""
+        """Handle server errors without showing alerts"""
         print(f"Server {server_id} error: {error}")
         self._update_server_status(server_id, "error")
-
-        # Find server name for notification
-        server = next((s for s in self.servers if s.id == server_id), None)
-        server_name = server.name if server else server_id
-
-        # Show critical error notification
-        QMessageBox.critical(
-            self,
-            "Server Error",
-            f"Server '{server_name}' encountered an error:\n\n{error}"
-        )
+        # Store error in ProcessManager logs
+        if hasattr(self.process_manager, 'logs') and server_id in self.process_manager.logs:
+            self.process_manager.logs[server_id].append(f"ERROR: {error}")
+            self.process_manager.logs_updated.emit(server_id)
 
     def _view_logs(self, server_config):
         """View logs for a server"""

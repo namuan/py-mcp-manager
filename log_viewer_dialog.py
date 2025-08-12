@@ -9,8 +9,14 @@ from PyQt6.QtGui import QFont, QTextCursor
 class LogViewerDialog(QDialog):
     def __init__(self, server_id, logs, parent=None):
         super().__init__(parent)
+        self.server_id = server_id
+        self.parent_window = parent
         self.setWindowTitle(f"Logs - {server_id}")
         self.setMinimumSize(800, 600)
+        
+        # Connect to process manager for real-time updates
+        if parent and hasattr(parent, 'process_manager'):
+            parent.process_manager.logs_updated.connect(self._on_logs_updated)
         
         layout = QVBoxLayout()
         
@@ -49,6 +55,28 @@ class LogViewerDialog(QDialog):
     
     def clear_logs(self):
         self.log_display.clear()
+        # Also clear logs in ProcessManager
+        if self.parent_window and hasattr(self.parent_window, 'process_manager'):
+            self.parent_window.process_manager.clear_logs(self.server_id)
+    
+    def _on_logs_updated(self, server_id):
+        """Update log display when new logs are received"""
+        if server_id == self.server_id:
+            if self.parent_window and hasattr(self.parent_window, 'process_manager'):
+                updated_logs = self.parent_window.process_manager.get_logs(server_id)
+                self.log_display.setText(updated_logs)
+                # Auto-scroll to bottom
+                self.log_display.moveCursor(QTextCursor.MoveOperation.End)
+    
+    def closeEvent(self, event):
+        """Disconnect signals when dialog is closed"""
+        if self.parent_window and hasattr(self.parent_window, 'process_manager'):
+            try:
+                self.parent_window.process_manager.logs_updated.disconnect(self._on_logs_updated)
+            except TypeError:
+                # Signal was already disconnected
+                pass
+        super().closeEvent(event)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
