@@ -38,7 +38,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='MCP Manager',
+    name='MCPManager',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -51,11 +51,12 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='assets\\mcp-manager-icon.ico'
 )
 
 app = BUNDLE(
     exe,
-    name='MCP Manager.app',
-    icon=None,
+    name='MCPManager.app',
+    icon='assets/mcp-manager-icon.icns',
     bundle_identifier='dev.deskriders.mcpmanager',
 )

@@ -36,7 +36,7 @@ package: clean-build ## Create macOS .app bundle
 .PHONY: install-macosx
 install-macosx: package ## Install application in user's Applications folder
 	@echo "🚀 Installing MCP Manager to Applications folder"
-	@cp -R "dist/MCP Manager.app" "/Applications/" 2>/dev/null || echo "Failed to copy to /Applications/. You may need to run with sudo or copy manually."
+	./scripts/install-macosx.sh "MCPManager.app"
 
 .PHONY: help
 help:
