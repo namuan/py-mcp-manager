@@ -4,10 +4,26 @@ import json
 
 from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton,
-    QDialog, QMessageBox, QListWidget, QListWidgetItem, QTextEdit, QTabWidget,
-    QFormLayout, QLineEdit, QHeaderView, QAbstractItemView, QFileDialog, QTableWidget, QTableWidgetItem
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QDialog,
+    QMessageBox,
+    QListWidget,
+    QListWidgetItem,
+    QTextEdit,
+    QTabWidget,
+    QFormLayout,
+    QLineEdit,
+    QHeaderView,
+    QAbstractItemView,
+    QFileDialog,
+    QTableWidget,
+    QTableWidgetItem,
 )
 
 from models import ServerConfig
@@ -19,7 +35,7 @@ class ServerListItemWidget(QWidget):
     def __init__(self, server_config: ServerConfig, parent=None):
         super().__init__(parent)
         self.server_id = server_config.id
-        self._status = getattr(server_config, 'status', 'offline') or 'offline'
+        self._status = getattr(server_config, "status", "offline") or "offline"
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(6, 4, 6, 4)
@@ -28,13 +44,13 @@ class ServerListItemWidget(QWidget):
         # Status dot
         self.dot = QLabel()
         self.dot.setFixedSize(12, 12)
-        self.dot.setObjectName('StatusDot')
+        self.dot.setObjectName("StatusDot")
         self.dot.setToolTip(self._status.capitalize())
         self._apply_dot_style(self._status)
 
         # Display Name only (hide ID in the list)
         self.name_label = QLabel(server_config.name)
-        self.name_label.setObjectName('ServerNameLabel')
+        self.name_label.setObjectName("ServerNameLabel")
 
         text_box = QVBoxLayout()
         text_box.setContentsMargins(0, 0, 0, 0)
@@ -49,16 +65,16 @@ class ServerListItemWidget(QWidget):
         layout.addWidget(self.dot)
         layout.addLayout(text_box)
         layout.addStretch()
-        self.setObjectName('ServerListItem')
+        self.setObjectName("ServerListItem")
 
     def _apply_dot_style(self, status: str):
-        color = '#ADB5BD'  # default/offline
-        if status == 'online':
-            color = '#28A745'  # green
-        elif status == 'starting':
-            color = '#FFC107'  # yellow
-        elif status == 'error':
-            color = '#DC3545'  # red
+        color = "#ADB5BD"  # default/offline
+        if status == "online":
+            color = "#28A745"  # green
+        elif status == "starting":
+            color = "#FFC107"  # yellow
+        elif status == "error":
+            color = "#DC3545"  # red
         # circle using border-radius
         self.dot.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
         self.dot.setToolTip(status.capitalize())
@@ -79,7 +95,9 @@ class ServerEditorPanel(QWidget):
         layout.setSpacing(6)
 
         form_layout = QFormLayout()
-        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        form_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+        )
 
         self.id_input = QLineEdit()
         form_layout.addRow("Server ID:", self.id_input)
@@ -106,8 +124,12 @@ class ServerEditorPanel(QWidget):
         self.args_table = QTableWidget()
         self.args_table.setColumnCount(1)
         self.args_table.setHorizontalHeaderLabels(["Argument"])
-        self.args_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.args_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.args_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        self.args_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
 
         args_btns = QHBoxLayout()
         add_arg = QPushButton("Add Argument")
@@ -126,9 +148,15 @@ class ServerEditorPanel(QWidget):
         self.env_table = QTableWidget()
         self.env_table.setColumnCount(2)
         self.env_table.setHorizontalHeaderLabels(["Variable", "Value"])
-        self.env_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.env_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.env_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.env_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        self.env_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
+        self.env_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
 
         env_btns = QHBoxLayout()
         add_env = QPushButton("Add Variable")
@@ -234,7 +262,7 @@ class ServerEditorPanel(QWidget):
             command=self.command_input.text().strip(),
             arguments=self._get_table_items(self.args_table),
             env_vars=self._get_env_vars(),
-            working_dir=self.dir_input.text().strip()
+            working_dir=self.dir_input.text().strip(),
         )
         self.saved.emit(config)
 
@@ -244,7 +272,7 @@ class ServerEditorPanel(QWidget):
 
 class MCPManagerWindow(QMainWindow):
     CONFIG_FILE = "mcp_servers.json"  # Config file in the same folder
-    
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MCP Manager")
@@ -287,7 +315,6 @@ class MCPManagerWindow(QMainWindow):
 
         # Load servers from config file and populate list
         self._load_servers_from_file()
-
 
     def _create_main_panes(self):
         # Main horizontal splitter-like layout without header/footer
@@ -414,12 +441,12 @@ class MCPManagerWindow(QMainWindow):
         if server_id:
             self._show_logs_for_server_id(server_id)
             server = self._find_server_by_id(server_id)
-            if server and hasattr(self, 'config_panel'):
+            if server and hasattr(self, "config_panel"):
                 self.config_panel.load_config(server)
                 # Enable editing only when offline
                 self.config_panel.setEnabled(server.status == "offline")
         else:
-            if hasattr(self, 'config_panel'):
+            if hasattr(self, "config_panel"):
                 self.config_panel.load_config(None)
                 self.config_panel.setEnabled(False)
 
@@ -442,11 +469,21 @@ class MCPManagerWindow(QMainWindow):
         if not server:
             return
         if server.status != "offline":
-            QMessageBox.information(self, "Server Running", "Stop the server before editing its configuration.")
+            QMessageBox.information(
+                self,
+                "Server Running",
+                "Stop the server before editing its configuration.",
+            )
             return
         # Duplicate ID check (allow unchanged ID)
-        if updated_config.id != server.id and any(s.id == updated_config.id for s in self.servers):
-            QMessageBox.warning(self, "Duplicate ID", f"A server with ID '{updated_config.id}' already exists.")
+        if updated_config.id != server.id and any(
+            s.id == updated_config.id for s in self.servers
+        ):
+            QMessageBox.warning(
+                self,
+                "Duplicate ID",
+                f"A server with ID '{updated_config.id}' already exists.",
+            )
             return
         # Preserve runtime status
         updated_config.status = server.status
@@ -459,8 +496,13 @@ class MCPManagerWindow(QMainWindow):
                 break
         # Migrate logs if ID changed
         if new_id != old_id:
-            if hasattr(self.process_manager, 'logs') and old_id in self.process_manager.logs:
-                self.process_manager.logs[new_id] = self.process_manager.logs.pop(old_id)
+            if (
+                hasattr(self.process_manager, "logs")
+                and old_id in self.process_manager.logs
+            ):
+                self.process_manager.logs[new_id] = self.process_manager.logs.pop(
+                    old_id
+                )
             self.selected_server_id = new_id
         # Save and refresh UI
         self._save_servers_to_file()
@@ -472,7 +514,7 @@ class MCPManagerWindow(QMainWindow):
                 self.server_list.setCurrentRow(i)
                 break
         # Ensure editor shows the saved config and enabled state
-        if hasattr(self, 'config_panel'):
+        if hasattr(self, "config_panel"):
             self.config_panel.load_config(updated_config)
             self.config_panel.setEnabled(updated_config.status == "offline")
 
@@ -482,7 +524,6 @@ class MCPManagerWindow(QMainWindow):
         self.process_manager.clear_logs(self.selected_server_id)
         self.log_display.clear()
 
-
     def _find_server_by_id(self, server_id):
         return next((s for s in self.servers if s.id == server_id), None)
 
@@ -490,7 +531,7 @@ class MCPManagerWindow(QMainWindow):
         if not self.selected_server_id:
             return
         # Switch to Logs tab and show current logs
-        if hasattr(self, 'tabs'):
+        if hasattr(self, "tabs"):
             self.tabs.setCurrentIndex(0)
         self._show_logs_for_server_id(self.selected_server_id)
         server = self._find_server_by_id(self.selected_server_id)
@@ -501,7 +542,7 @@ class MCPManagerWindow(QMainWindow):
         if not self.selected_server_id:
             return
         # Switch to Logs tab and show current logs
-        if hasattr(self, 'tabs'):
+        if hasattr(self, "tabs"):
             self.tabs.setCurrentIndex(0)
         self._show_logs_for_server_id(self.selected_server_id)
         server = self._find_server_by_id(self.selected_server_id)
@@ -514,17 +555,17 @@ class MCPManagerWindow(QMainWindow):
         server = self._find_server_by_id(self.selected_server_id)
         if not server:
             return
-            
+
         # Show confirmation dialog
         reply = QMessageBox.question(
-            self, 
-            "Confirm Delete", 
+            self,
+            "Confirm Delete",
             f"Are you sure you want to delete the server '{server.name}' (ID: {server.id})?\n\n"
             f"This action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
-        
+
         if reply == QMessageBox.StandardButton.Yes:
             # Stop if running
             self.process_manager.stop_server(server.id)
@@ -540,11 +581,13 @@ class MCPManagerWindow(QMainWindow):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(False)
         self.delete_button.setEnabled(has_selection)
-        if hasattr(self, 'config_panel'):
+        if hasattr(self, "config_panel"):
             # Enable config tab panel only if a server is selected and offline
             if has_selection:
                 server = self._find_server_by_id(self.selected_server_id)
-                self.config_panel.setEnabled(bool(server and server.status == "offline"))
+                self.config_panel.setEnabled(
+                    bool(server and server.status == "offline")
+                )
             else:
                 self.config_panel.setEnabled(False)
         if has_selection:
@@ -557,26 +600,28 @@ class MCPManagerWindow(QMainWindow):
         """Load server configurations from the config file"""
         if os.path.exists(self.CONFIG_FILE):
             try:
-                with open(self.CONFIG_FILE, 'r') as f:
+                with open(self.CONFIG_FILE, "r") as f:
                     data = json.load(f)
-                
+
                 if isinstance(data, list):
                     self.servers = []
                     for item in data:
                         if isinstance(item, dict):
                             self.servers.append(ServerConfig.from_dict(item))
-                    
-                    print(f"[DEBUG] Loaded servers from file: {[s.id for s in self.servers]}")
+
+                    print(
+                        f"[DEBUG] Loaded servers from file: {[s.id for s in self.servers]}"
+                    )
                     # Populate the left-side server list
                     self._populate_server_list()
                     return
             except Exception as e:
                 print(f"[ERROR] Loading config file: {e}")
-        
+
         # If no config file exists or loading failed, load sample data
         print("[DEBUG] Loading sample data (no config file found)")
         self._load_sample_data()
-    
+
     def _load_sample_data(self):
         """Load sample server configurations for demonstration"""
         sample_server1 = ServerConfig(
@@ -585,7 +630,7 @@ class MCPManagerWindow(QMainWindow):
             command="npx",
             arguments=["run", "brave"],
             env_vars={"PORT": "3000"},
-            working_dir=""
+            working_dir="",
         )
 
         sample_server2 = ServerConfig(
@@ -594,23 +639,25 @@ class MCPManagerWindow(QMainWindow):
             command="docker",
             arguments=["run", "postgres"],
             env_vars={"POSTGRES_PASSWORD": "secret"},
-            working_dir=""
+            working_dir="",
         )
 
         self.servers = [sample_server1, sample_server2]
 
         # Populate the left-side server list
         self._populate_server_list()
-        
+
         # Save the sample data to file for future use
         self._save_servers_to_file()
-    
+
     def _save_servers_to_file(self):
         """Save current server configurations to the config file"""
         try:
             configs = [s.to_dict() for s in self.servers]
-            print(f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}")
-            with open(self.CONFIG_FILE, 'w') as f:
+            print(
+                f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}"
+            )
+            with open(self.CONFIG_FILE, "w") as f:
                 json.dump(configs, f, indent=2)
         except Exception as e:
             print(f"[ERROR] Saving config file: {e}")
@@ -622,7 +669,11 @@ class MCPManagerWindow(QMainWindow):
             new_config = dialog.get_config()
             # Prevent duplicate IDs
             if any(s.id == new_config.id for s in self.servers):
-                QMessageBox.warning(self, "Duplicate ID", f"A server with ID '{new_config.id}' already exists.")
+                QMessageBox.warning(
+                    self,
+                    "Duplicate ID",
+                    f"A server with ID '{new_config.id}' already exists.",
+                )
                 return
             self.servers.append(new_config)
             self._save_servers_to_file()
@@ -638,8 +689,10 @@ class MCPManagerWindow(QMainWindow):
     def _clone_server(self):
         """Clone the currently selected server configuration"""
         if not self.selected_server_id:
-            print(f"[DEBUG] Clone attempt with no server selected")
-            QMessageBox.information(self, "No Server Selected", "Please select a server to clone.")
+            print("[DEBUG] Clone attempt with no server selected")
+            QMessageBox.information(
+                self, "No Server Selected", "Please select a server to clone."
+            )
             return
 
         server = self._find_server_by_id(self.selected_server_id)
@@ -648,10 +701,10 @@ class MCPManagerWindow(QMainWindow):
             return
 
         print(f"[DEBUG] Cloning server: {server.id} ({server.name})")
-        
+
         # Create a copy of the server configuration
         new_config = server.copy()
-        
+
         # Generate a new unique ID by appending "_clone" and then numbers if necessary
         base_id = new_config.id + "_clone"
         new_id = base_id
@@ -659,21 +712,21 @@ class MCPManagerWindow(QMainWindow):
         while any(s.id == new_id for s in self.servers):
             new_id = f"{base_id}_{count}"
             count += 1
-        
+
         print(f"[DEBUG] Generated new clone ID: {new_id} (after {count-1} attempts)")
         new_config.id = new_id
-        
+
         # Reset status to offline
         new_config.status = "offline"
-        
+
         # Add the cloned server to the list
         self.servers.append(new_config)
         print(f"[DEBUG] Added clone to server list. Total servers: {len(self.servers)}")
-        
+
         # Save and refresh UI
         self._save_servers_to_file()
         self._populate_server_list()
-        
+
         # Select the cloned server in the list
         for i in range(self.server_list.count()):
             item = self.server_list.item(i)
@@ -681,7 +734,6 @@ class MCPManagerWindow(QMainWindow):
                 self.server_list.setCurrentRow(i)
                 print(f"[DEBUG] Selected cloned server in UI: {new_id}")
                 break
-
 
     def _check_statuses(self):
         """Check status of all servers"""
@@ -696,18 +748,22 @@ class MCPManagerWindow(QMainWindow):
             return
 
         server.status = status
-        
+
         # Update item traffic light in the list
-        widget = self.server_item_widgets.get(server_id) if hasattr(self, 'server_item_widgets') else None
+        widget = (
+            self.server_item_widgets.get(server_id)
+            if hasattr(self, "server_item_widgets")
+            else None
+        )
         if widget:
             widget.update_status(status)
-        
+
         # Update controls based on new status
-        if hasattr(self, '_update_controls_enabled'):
+        if hasattr(self, "_update_controls_enabled"):
             self._update_controls_enabled()
-        
+
         # Update status label
-        status_label = getattr(server, 'status_label', None)
+        status_label = getattr(server, "status_label", None)
         if status_label:
             status_label.setText(status.capitalize())
 
@@ -720,9 +776,9 @@ class MCPManagerWindow(QMainWindow):
                 status_label.setObjectName("StatusOffline")
             status_label.style().unpolish(status_label)
             status_label.style().polish(status_label)
-        
+
         # Update start/stop button text
-        if hasattr(server, 'start_stop_button') and server.start_stop_button:
+        if hasattr(server, "start_stop_button") and server.start_stop_button:
             if status == "online":
                 server.start_stop_button.setText("Stop")
             else:
@@ -732,7 +788,10 @@ class MCPManagerWindow(QMainWindow):
         """Handle server output without showing alerts"""
         print(f"Server {server_id} output: {output}")
         # Store output in ProcessManager logs
-        if hasattr(self.process_manager, 'logs') and server_id in self.process_manager.logs:
+        if (
+            hasattr(self.process_manager, "logs")
+            and server_id in self.process_manager.logs
+        ):
             self.process_manager.logs[server_id].append(output)
             self.process_manager.logs_updated.emit(server_id)
 
@@ -741,18 +800,21 @@ class MCPManagerWindow(QMainWindow):
         print(f"Server {server_id} error: {error}")
         self._update_server_status(server_id, "error")
         # Store error in ProcessManager logs
-        if hasattr(self.process_manager, 'logs') and server_id in self.process_manager.logs:
+        if (
+            hasattr(self.process_manager, "logs")
+            and server_id in self.process_manager.logs
+        ):
             self.process_manager.logs[server_id].append(f"ERROR: {error}")
             self.process_manager.logs_updated.emit(server_id)
-
 
     def _get_style_sheet(self):
         # Delegated to external module for maintainability
         from ui_styles import get_style_sheet
+
         return get_style_sheet()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MCPManagerWindow()
     window.show()
