@@ -141,7 +141,7 @@ class ServerEditorDialog(QDialog):
         """Return the updated configuration"""
         # Create new config from inputs
         config = ServerConfig(
-            id=self.id_input.text().strip(),
+            server_id=self.id_input.text().strip(),
             name=self.name_input.text().strip(),
             command=self.command_input.text().strip(),
             arguments=self._get_table_items(self.args_table),

@@ -245,7 +245,7 @@ class ServerEditorPanel(QWidget):
             QMessageBox.critical(self, "Validation Error", "\n".join(errors))
             return
         config = ServerConfig(
-            id=self.id_input.text().strip(),
+            server_id=self.id_input.text().strip(),
             name=self.name_input.text().strip(),
             command=self.command_input.text().strip(),
             arguments=self._get_table_items(self.args_table),
@@ -603,7 +603,7 @@ class MCPManagerWindow(QMainWindow):
     def _load_sample_data(self):
         """Load sample server configurations for demonstration"""
         sample_server1 = ServerConfig(
-            id="brave-search",
+            server_id="brave-search",
             name="Brave Search",
             command="npx",
             arguments=["run", "brave"],
@@ -612,7 +612,7 @@ class MCPManagerWindow(QMainWindow):
         )
 
         sample_server2 = ServerConfig(
-            id="postgres",
+            server_id="postgres",
             name="Postgres",
             command="docker",
             arguments=["run", "postgres"],

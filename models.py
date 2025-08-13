@@ -1,14 +1,6 @@
 class ServerConfig:
-    def __init__(
-        self,
-        id: str,
-        name: str,
-        command: str,
-        arguments: list,
-        env_vars: dict,
-        working_dir: str = "",
-    ):
-        self.id = id
+    def __init__(self, server_id: str, name: str, command: str, arguments: list, env_vars: dict, working_dir: str = ""):
+        self.id = server_id
         self.name = name
         self.command = command
         self.arguments = arguments
@@ -32,7 +24,7 @@ class ServerConfig:
     def from_dict(cls, data: dict) -> "ServerConfig":
         """Create configuration from dictionary"""
         return cls(
-            id=data["id"],
+            server_id=data["id"],
             name=data["name"],
             command=data["command"],
             arguments=data["arguments"],
@@ -43,7 +35,7 @@ class ServerConfig:
     def copy(self) -> "ServerConfig":
         """Create a deep copy of the configuration"""
         return ServerConfig(
-            id=self.id,
+            server_id=self.id,
             name=self.name,
             command=self.command,
             arguments=self.arguments.copy(),

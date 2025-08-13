@@ -40,6 +40,32 @@ def build_json_view_dialog(parent, servers: list[ServerConfig], on_export: Calla
     return dialog
 
 
+class InvalidConfigurationFormatError(Exception):
+    """Exception raised when the configuration format is invalid."""
+
+    def __init__(self, message: str = "Invalid configuration format") -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
+class ServerConfigurationTypeError(Exception):
+    """Exception raised when a server configuration is not a dictionary."""
+
+    def __init__(self, message: str = "Server configuration must be a dictionary") -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
+def _raise_invalid_format() -> None:
+    """Raise an InvalidConfigurationFormatError."""
+    raise InvalidConfigurationFormatError()
+
+
+def _raise_invalid_type() -> None:
+    """Raise a ServerConfigurationTypeError."""
+    raise ServerConfigurationTypeError()
+
+
 def select_and_load_servers(parent) -> list[ServerConfig] | None:
     """Open a file dialog, load servers JSON, validate, and return list of ServerConfig.
     Shows message boxes on failure or cancellation and returns None in that case.
@@ -53,12 +79,12 @@ def select_and_load_servers(parent) -> list[ServerConfig] | None:
             data = json.load(f)
 
         if not isinstance(data, list):
-            raise ValueError("Invalid configuration format: expected a list of servers")
+            _raise_invalid_format()
 
         new_servers: list[ServerConfig] = []
         for item in data:
             if not isinstance(item, dict):
-                raise ValueError("Each server configuration must be a dictionary")
+                _raise_invalid_type()
             new_servers.append(ServerConfig.from_dict(item))
 
         QMessageBox.information(parent, "Import Successful", f"Imported {len(new_servers)} servers")

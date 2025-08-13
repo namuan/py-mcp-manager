@@ -1,4 +1,5 @@
 import sys
+from contextlib import suppress
 
 from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtWidgets import (
@@ -67,21 +68,17 @@ class LogViewerDialog(QDialog):
 
     def _on_logs_updated(self, server_id):
         """Update log display when new logs are received"""
-        if server_id == self.server_id:
-            if self.parent_window and hasattr(self.parent_window, "process_manager"):
-                updated_logs = self.parent_window.process_manager.get_logs(server_id)
-                self.log_display.setText(updated_logs)
-                # Auto-scroll to bottom
-                self.log_display.moveCursor(QTextCursor.MoveOperation.End)
+        if server_id == self.server_id and self.parent_window and hasattr(self.parent_window, "process_manager"):
+            updated_logs = self.parent_window.process_manager.get_logs(server_id)
+            self.log_display.setText(updated_logs)
+            # Auto-scroll to bottom
+            self.log_display.moveCursor(QTextCursor.MoveOperation.End)
 
     def closeEvent(self, event):
         """Disconnect signals when dialog is closed"""
         if self.parent_window and hasattr(self.parent_window, "process_manager"):
-            try:
+            with suppress(TypeError):
                 self.parent_window.process_manager.logs_updated.disconnect(self._on_logs_updated)
-            except TypeError:
-                # Signal was already disconnected
-                pass
         super().closeEvent(event)
 
 
