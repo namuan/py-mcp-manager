@@ -67,3 +67,4 @@ mcp_servers.json
 # Temporary files
 *.tmp
 *.temp
+mcp_servers.json
