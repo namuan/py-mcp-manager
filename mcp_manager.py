@@ -301,12 +301,24 @@ class MCPManagerWindow(QMainWindow):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(6)
 
-        # Add Server button
+        # Buttons row for Add and Clone
+        buttons_row = QHBoxLayout()
+        buttons_row.setContentsMargins(0, 0, 0, 0)
+        buttons_row.setSpacing(6)
+
         self.add_server_button = QPushButton("+ Add Server")
         self.add_server_button.setObjectName("AddServerButton")
         self.add_server_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.add_server_button.clicked.connect(self._add_new_server)
-        left_layout.addWidget(self.add_server_button)
+        buttons_row.addWidget(self.add_server_button)
+
+        self.clone_server_button = QPushButton("Clone Server")
+        self.clone_server_button.setObjectName("CloneServerButton")
+        self.clone_server_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.clone_server_button.clicked.connect(self._clone_server)
+        buttons_row.addWidget(self.clone_server_button)
+
+        left_layout.addLayout(buttons_row)
 
         self.server_list = QListWidget()
         self.server_list.setObjectName("ServerList")
@@ -502,14 +514,26 @@ class MCPManagerWindow(QMainWindow):
         server = self._find_server_by_id(self.selected_server_id)
         if not server:
             return
-        # Stop if running
-        self.process_manager.stop_server(server.id)
-        # Remove from list and UI
-        self.servers = [s for s in self.servers if s.id != server.id]
-        self._save_servers_to_file()
-        self._populate_server_list()
-        # Clear logs view if deleted server was selected
-        self.log_display.clear()
+            
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self, 
+            "Confirm Delete", 
+            f"Are you sure you want to delete the server '{server.name}' (ID: {server.id})?\n\n"
+            f"This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # Stop if running
+            self.process_manager.stop_server(server.id)
+            # Remove from list and UI
+            self.servers = [s for s in self.servers if s.id != server.id]
+            self._save_servers_to_file()
+            self._populate_server_list()
+            # Clear logs view if deleted server was selected
+            self.log_display.clear()
 
     def _update_controls_enabled(self):
         has_selection = self.selected_server_id is not None
@@ -542,13 +566,15 @@ class MCPManagerWindow(QMainWindow):
                         if isinstance(item, dict):
                             self.servers.append(ServerConfig.from_dict(item))
                     
+                    print(f"[DEBUG] Loaded servers from file: {[s.id for s in self.servers]}")
                     # Populate the left-side server list
                     self._populate_server_list()
                     return
             except Exception as e:
-                print(f"Error loading config file: {e}")
+                print(f"[ERROR] Loading config file: {e}")
         
         # If no config file exists or loading failed, load sample data
+        print("[DEBUG] Loading sample data (no config file found)")
         self._load_sample_data()
     
     def _load_sample_data(self):
@@ -583,10 +609,11 @@ class MCPManagerWindow(QMainWindow):
         """Save current server configurations to the config file"""
         try:
             configs = [s.to_dict() for s in self.servers]
+            print(f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}")
             with open(self.CONFIG_FILE, 'w') as f:
                 json.dump(configs, f, indent=2)
         except Exception as e:
-            print(f"Error saving config file: {e}")
+            print(f"[ERROR] Saving config file: {e}")
 
     def _add_new_server(self):
         """Open dialog to add a new server"""
@@ -607,6 +634,53 @@ class MCPManagerWindow(QMainWindow):
                 if item.data(Qt.ItemDataRole.UserRole) == new_config.id:
                     self.server_list.setCurrentRow(i)
                     break
+
+    def _clone_server(self):
+        """Clone the currently selected server configuration"""
+        if not self.selected_server_id:
+            print(f"[DEBUG] Clone attempt with no server selected")
+            QMessageBox.information(self, "No Server Selected", "Please select a server to clone.")
+            return
+
+        server = self._find_server_by_id(self.selected_server_id)
+        if not server:
+            print(f"[DEBUG] Server not found for ID: {self.selected_server_id}")
+            return
+
+        print(f"[DEBUG] Cloning server: {server.id} ({server.name})")
+        
+        # Create a copy of the server configuration
+        new_config = server.copy()
+        
+        # Generate a new unique ID by appending "_clone" and then numbers if necessary
+        base_id = new_config.id + "_clone"
+        new_id = base_id
+        count = 1
+        while any(s.id == new_id for s in self.servers):
+            new_id = f"{base_id}_{count}"
+            count += 1
+        
+        print(f"[DEBUG] Generated new clone ID: {new_id} (after {count-1} attempts)")
+        new_config.id = new_id
+        
+        # Reset status to offline
+        new_config.status = "offline"
+        
+        # Add the cloned server to the list
+        self.servers.append(new_config)
+        print(f"[DEBUG] Added clone to server list. Total servers: {len(self.servers)}")
+        
+        # Save and refresh UI
+        self._save_servers_to_file()
+        self._populate_server_list()
+        
+        # Select the cloned server in the list
+        for i in range(self.server_list.count()):
+            item = self.server_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == new_id:
+                self.server_list.setCurrentRow(i)
+                print(f"[DEBUG] Selected cloned server in UI: {new_id}")
+                break
 
 
     def _check_statuses(self):

@@ -1,5 +1,5 @@
 class ServerConfig:
-    def __init__(self, id: str, name: str, command: str, 
+    def __init__(self, id: str, name: str, command: str,
                  arguments: list, env_vars: dict, working_dir: str = ""):
         self.id = id
         self.name = name
@@ -31,4 +31,15 @@ class ServerConfig:
             arguments=data["arguments"],
             env_vars=data["env_vars"],
             working_dir=data.get("working_dir", "")
+        )
+        
+    def copy(self) -> 'ServerConfig':
+        """Create a deep copy of the configuration"""
+        return ServerConfig(
+            id=self.id,
+            name=self.name,
+            command=self.command,
+            arguments=self.arguments.copy(),
+            env_vars=self.env_vars.copy(),
+            working_dir=self.working_dir
         )

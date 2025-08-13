@@ -45,7 +45,7 @@ def get_style_sheet() -> str:
                 background-color: #DEE2E6;
                 border-color: #DEE2E6;
             }
-            #AddServerButton {
+            #AddServerButton, #CloneServerButton {
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
                 background-color: #E9ECEF;
                 color: #212529;
@@ -55,7 +55,7 @@ def get_style_sheet() -> str:
                 font-size: 14px;
                 font-weight: 500;
             }
-            #AddServerButton:hover {
+            #AddServerButton:hover, #CloneServerButton:hover {
                 background-color: #DEE2E6;
             }
             .QFrame#Separator {
