@@ -74,7 +74,13 @@ python mcp_manager.py
 
 ## Configuration
 
-Server configurations are stored in `mcp_servers.json` in the application directory. You can:
+Server configurations are stored in a platform-appropriate user data directory:
+
+- **macOS**: `~/Library/Application Support/MCP Manager/mcp_servers.json`
+- **Windows**: `%APPDATA%\MCP Manager\mcp_servers.json`
+- **Linux**: `~/.local/share/mcp-manager/mcp_servers.json`
+
+You can:
 
 - Manually edit this file when the application is not running
 - Use the built-in JSON editor (View JSON button)

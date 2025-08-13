@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 
 from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -258,8 +259,35 @@ class ServerEditorPanel(QWidget):
         self.load_config(self.current_config)
 
 
+CONFIG_FILE_NAME = "mcp_servers.json"
+APP_NAME = "py-mcp-manager"
+
+
+def _default_config_dir() -> Path:
+    """Return platform-appropriate config directory for this app."""
+    home = Path.home()
+    if sys.platform == "darwin":
+        # macOS: ~/Library/Application Support/<AppName>
+        return home / "Library" / "Application Support" / APP_NAME
+    if sys.platform == "win32":
+        # Windows: %APPDATA%\<AppName>
+        appdata = os.getenv("APPDATA")
+        if appdata:
+            return Path(appdata) / APP_NAME
+        # Fallback to home directory
+        return home / APP_NAME
+    # Linux and others: ~/.config/<AppName>
+    xdg = os.getenv("XDG_CONFIG_HOME")
+    base = Path(xdg) if xdg else (home / ".config")
+    return base / APP_NAME
+
+
 class MCPManagerWindow(QMainWindow):
-    CONFIG_FILE = "mcp_servers.json"  # Config file in the same folder
+    def get_config_file(self):
+        # Ensure the directory exists
+        config_dir = _default_config_dir()
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return str(config_dir / CONFIG_FILE_NAME)
 
     def __init__(self):
         super().__init__()
@@ -578,9 +606,9 @@ class MCPManagerWindow(QMainWindow):
 
     def _load_servers_from_file(self):
         """Load server configurations from the config file"""
-        if os.path.exists(self.CONFIG_FILE):
+        if os.path.exists(self.get_config_file()):
             try:
-                with open(self.CONFIG_FILE) as f:
+                with open(self.get_config_file()) as f:
                     data = json.load(f)
 
                 if isinstance(data, list):
@@ -632,8 +660,8 @@ class MCPManagerWindow(QMainWindow):
         """Save current server configurations to the config file"""
         try:
             configs = [s.to_dict() for s in self.servers]
-            print(f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}")
-            with open(self.CONFIG_FILE, "w") as f:
+            print(f"[DEBUG] Saving servers to {self.get_config_file()}: {[s.id for s in self.servers]}")
+            with open(self.get_config_file(), "w") as f:
                 json.dump(configs, f, indent=2)
         except Exception as e:
             print(f"[ERROR] Saving config file: {e}")
