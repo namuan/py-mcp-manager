@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.coveragerc
+.pytest_cache/
+.pytest_cache/**
+.pytest_cache/**
+.cache
+.pytest_cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.pytest_cache/**
+.pytest_cache/**
+.cache
+.pytest_cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build
+build/
+dist/
+*.egg-info/
+*.egg
+
+# PyInstaller
+*.spec
+
+# Configuration files
+mcp_servers.json
+
+# uv
+.uv-cache/
+
+# Temporary files
+*.tmp
+*.temp
