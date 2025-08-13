@@ -113,4 +113,26 @@ def get_style_sheet() -> str:
                 font-style: italic;
                 padding: 20px;
             }
+            #ServerList {
+                border: 1px solid #E9ECEF;
+                border-radius: 6px;
+                background-color: #FFFFFF;
+            }
+            #ServerList::item {
+                padding: 6px 8px;
+            }
+            #ServerList::item:selected {
+                background-color: #E7F1FF;
+            }
+            #ServerListItem {
+                background: transparent;
+            }
+            #LogDisplay {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                background-color: #0B1020;
+                color: #E6EDF3;
+                border: 1px solid #E9ECEF;
+                border-radius: 6px;
+                padding: 8px;
+            }
         """

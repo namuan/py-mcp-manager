@@ -2,16 +2,244 @@ import sys
 import os
 import json
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QFrame, QGridLayout, QSpacerItem, QSizePolicy,
-    QDialog, QMessageBox
+    QLabel, QPushButton,
+    QDialog, QMessageBox, QListWidget, QListWidgetItem, QTextEdit, QTabWidget,
+    QFormLayout, QLineEdit, QHeaderView, QAbstractItemView, QFileDialog, QTableWidget, QTableWidgetItem
 )
 
 from models import ServerConfig
 from process_manager import ProcessManager
 from server_editor_dialog import ServerEditorDialog
+
+
+class ServerListItemWidget(QWidget):
+    def __init__(self, server_config: ServerConfig, parent=None):
+        super().__init__(parent)
+        self.server_id = server_config.id
+        self._status = getattr(server_config, 'status', 'offline') or 'offline'
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(6)
+
+        # Status dot
+        self.dot = QLabel()
+        self.dot.setFixedSize(12, 12)
+        self.dot.setObjectName('StatusDot')
+        self.dot.setToolTip(self._status.capitalize())
+        self._apply_dot_style(self._status)
+
+        # Display Name only (hide ID in the list)
+        self.name_label = QLabel(server_config.name)
+        self.name_label.setObjectName('ServerNameLabel')
+
+        text_box = QVBoxLayout()
+        text_box.setContentsMargins(0, 0, 0, 0)
+        text_box.setSpacing(0)
+        text_row = QHBoxLayout()
+        text_row.setContentsMargins(0, 0, 0, 0)
+        text_row.setSpacing(6)
+        text_row.addWidget(self.name_label)
+        text_row.addStretch()
+        text_box.addLayout(text_row)
+
+        layout.addWidget(self.dot)
+        layout.addLayout(text_box)
+        layout.addStretch()
+        self.setObjectName('ServerListItem')
+
+    def _apply_dot_style(self, status: str):
+        color = '#ADB5BD'  # default/offline
+        if status == 'online':
+            color = '#28A745'  # green
+        elif status == 'starting':
+            color = '#FFC107'  # yellow
+        elif status == 'error':
+            color = '#DC3545'  # red
+        # circle using border-radius
+        self.dot.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
+        self.dot.setToolTip(status.capitalize())
+
+    def update_status(self, status: str):
+        self._status = status
+        self._apply_dot_style(status)
+
+
+class ServerEditorPanel(QWidget):
+    saved = pyqtSignal(ServerConfig)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.current_config = None
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        form_layout = QFormLayout()
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        self.id_input = QLineEdit()
+        form_layout.addRow("Server ID:", self.id_input)
+
+        self.name_input = QLineEdit()
+        form_layout.addRow("Display Name:", self.name_input)
+
+        self.command_input = QLineEdit()
+        form_layout.addRow("Command:", self.command_input)
+
+        dir_layout = QHBoxLayout()
+        self.dir_input = QLineEdit()
+        browse_btn = QPushButton("Browse...")
+        browse_btn.clicked.connect(self._browse_directory)
+        dir_layout.addWidget(self.dir_input)
+        dir_layout.addWidget(browse_btn)
+        form_layout.addRow("Working Directory:", dir_layout)
+
+        layout.addLayout(form_layout)
+
+        # Arguments table
+        args_label = QLabel("Arguments:")
+        layout.addWidget(args_label)
+        self.args_table = QTableWidget()
+        self.args_table.setColumnCount(1)
+        self.args_table.setHorizontalHeaderLabels(["Argument"])
+        self.args_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.args_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+        args_btns = QHBoxLayout()
+        add_arg = QPushButton("Add Argument")
+        add_arg.clicked.connect(lambda: self._add_table_row(self.args_table))
+        rm_arg = QPushButton("Remove Selected")
+        rm_arg.clicked.connect(lambda: self._remove_selected_rows(self.args_table))
+        args_btns.addWidget(add_arg)
+        args_btns.addWidget(rm_arg)
+
+        layout.addWidget(self.args_table)
+        layout.addLayout(args_btns)
+
+        # Env vars table
+        env_label = QLabel("Environment Variables:")
+        layout.addWidget(env_label)
+        self.env_table = QTableWidget()
+        self.env_table.setColumnCount(2)
+        self.env_table.setHorizontalHeaderLabels(["Variable", "Value"])
+        self.env_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.env_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.env_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+        env_btns = QHBoxLayout()
+        add_env = QPushButton("Add Variable")
+        add_env.clicked.connect(lambda: self._add_table_row(self.env_table, 2))
+        rm_env = QPushButton("Remove Selected")
+        rm_env.clicked.connect(lambda: self._remove_selected_rows(self.env_table))
+        env_btns.addWidget(add_env)
+        env_btns.addWidget(rm_env)
+
+        layout.addWidget(self.env_table)
+        layout.addLayout(env_btns)
+
+        # Action buttons
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self.save_btn = QPushButton("Save")
+        self.reset_btn = QPushButton("Reset")
+        self.save_btn.clicked.connect(self._on_save)
+        self.reset_btn.clicked.connect(self._on_reset)
+        btn_row.addWidget(self.save_btn)
+        btn_row.addWidget(self.reset_btn)
+        layout.addLayout(btn_row)
+
+    def load_config(self, config: ServerConfig):
+        self.current_config = config
+        if not config:
+            # Clear inputs
+            self.id_input.clear()
+            self.name_input.clear()
+            self.command_input.clear()
+            self.dir_input.clear()
+            self._populate_table(self.args_table, [])
+            self._populate_table(self.env_table, [])
+            return
+        self.id_input.setText(config.id)
+        self.name_input.setText(config.name)
+        self.command_input.setText(config.command)
+        self.dir_input.setText(config.working_dir)
+        self._populate_table(self.args_table, config.arguments)
+        self._populate_table(self.env_table, list(config.env_vars.items()))
+
+    def _populate_table(self, table, items):
+        table.setRowCount(len(items))
+        for i, item in enumerate(items):
+            if table.columnCount() == 1:
+                table.setItem(i, 0, QTableWidgetItem(str(item)))
+            else:
+                key, value = item
+                table.setItem(i, 0, QTableWidgetItem(key))
+                table.setItem(i, 1, QTableWidgetItem(value))
+
+    def _add_table_row(self, table, columns=1):
+        row = table.rowCount()
+        table.insertRow(row)
+        for col in range(columns):
+            table.setItem(row, col, QTableWidgetItem(""))
+
+    def _remove_selected_rows(self, table):
+        selected = table.selectionModel().selectedRows()
+        for index in sorted(selected, reverse=True):
+            table.removeRow(index.row())
+
+    def _browse_directory(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Working Directory")
+        if dir_path:
+            self.dir_input.setText(dir_path)
+
+    def _get_table_items(self, table):
+        items = []
+        for row in range(table.rowCount()):
+            item = table.item(row, 0)
+            if item and item.text().strip():
+                items.append(item.text().strip())
+        return items
+
+    def _get_env_vars(self):
+        env_vars = {}
+        for row in range(self.env_table.rowCount()):
+            key_item = self.env_table.item(row, 0)
+            value_item = self.env_table.item(row, 1)
+            if key_item and key_item.text().strip():
+                key = key_item.text().strip()
+                value = value_item.text().strip() if value_item else ""
+                env_vars[key] = value
+        return env_vars
+
+    def validate(self):
+        errors = []
+        if not self.id_input.text().strip():
+            errors.append("Server ID is required")
+        if not self.command_input.text().strip():
+            errors.append("Command is required")
+        return errors
+
+    def _on_save(self):
+        errors = self.validate()
+        if errors:
+            QMessageBox.critical(self, "Validation Error", "\n".join(errors))
+            return
+        config = ServerConfig(
+            id=self.id_input.text().strip(),
+            name=self.name_input.text().strip(),
+            command=self.command_input.text().strip(),
+            arguments=self._get_table_items(self.args_table),
+            env_vars=self._get_env_vars(),
+            working_dir=self.dir_input.text().strip()
+        )
+        self.saved.emit(config)
+
+    def _on_reset(self):
+        self.load_config(self.current_config)
 
 
 class MCPManagerWindow(QMainWindow):
@@ -25,7 +253,7 @@ class MCPManagerWindow(QMainWindow):
 
         self.process_manager = ProcessManager()
         self.servers = []  # List of ServerConfig objects
-        self.server_rows = {}  # server_id: row_index
+        self.server_item_widgets = {}  # server_id: ServerListItemWidget
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self._check_statuses)
         self.status_timer.start(5000)  # Check status every 5 seconds
@@ -41,236 +269,265 @@ class MCPManagerWindow(QMainWindow):
         self.container_widget = QWidget()
         self.container_widget.setObjectName("ContainerWidget")
         self.container_layout = QVBoxLayout(self.container_widget)
-        self.container_layout.setContentsMargins(40, 20, 40, 20)
-        self.container_layout.setSpacing(20)
+        self.container_layout.setContentsMargins(12, 8, 12, 8)
+        self.container_layout.setSpacing(12)
         self.main_layout.addWidget(self.container_widget)
 
-        # Header
-        self._create_header()
+        # Create main two-pane UI (servers list on left, logs on right)
+        self._create_main_panes()
 
-        # Servers Section
-        self._create_servers_section()
-
-        # Spacer to push footer to the bottom
-        spacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        self.container_layout.addItem(spacer)
-
-        # Footer
-        self._create_footer()
-
+        # Apply styles
         self.setStyleSheet(self._get_style_sheet())
 
-        # Load servers from config file
-        self._load_servers_from_file()
-
-    def _create_header(self):
-        header_widget = QWidget()
-        header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(0, 0, 0, 15)
-
-        title_label = QLabel("MCP Manager")
-        title_label.setObjectName("MainTitle")
-
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-
-        self.visual_editor_button = QPushButton("Visual Editor")
-        self.visual_editor_button.setObjectName("HeaderButton")
-        self.visual_editor_button.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.view_json_button = QPushButton("View JSON")
-        self.view_json_button.setObjectName("ViewJsonButton")
-        self.view_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.view_json_button.clicked.connect(self._view_json)
-
-        header_layout.addWidget(self.visual_editor_button)
-        header_layout.addWidget(self.view_json_button)
-
-        self.container_layout.addWidget(header_widget)
-
-        # Separator
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        line.setObjectName("Separator")
-        self.container_layout.addWidget(line)
-
-        # Connect process manager signals
+        # Connect process manager signals (moved from header creation)
         self.process_manager.status_changed.connect(self._update_server_status)
         self.process_manager.output_received.connect(self._handle_server_output)
         self.process_manager.error_occurred.connect(self._handle_server_error)
+        self.process_manager.logs_updated.connect(self._on_logs_updated)
 
-    def _create_servers_section(self):
-        servers_container = QWidget()
-        servers_layout = QVBoxLayout(servers_container)
-        servers_layout.setContentsMargins(0, 20, 0, 0)
-        servers_layout.setSpacing(20)
+        # Load servers from config file and populate list
+        self._load_servers_from_file()
 
-        # Servers Header Bar
-        servers_header_bar = QWidget()
-        servers_header_layout = QHBoxLayout(servers_header_bar)
-        servers_header_layout.setContentsMargins(0, 0, 0, 0)
 
-        servers_title = QLabel("MCP Servers")
-        servers_title.setObjectName("SectionTitle")
+    def _create_main_panes(self):
+        # Main horizontal splitter-like layout without header/footer
+        main_row = QHBoxLayout()
+        main_row.setContentsMargins(0, 0, 0, 0)
+        main_row.setSpacing(12)
 
-        servers_header_layout.addWidget(servers_title)
-        servers_header_layout.addStretch()
+        # Left: server list
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(6)
 
-        self.check_all_button = QPushButton("Check All Statuses")
-        self.check_all_button.setObjectName("ActionButton")
-        self.check_all_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.check_all_button.clicked.connect(self._check_statuses)
-
-        self.paste_json_button = QPushButton("Paste from JSON")
-        self.paste_json_button.setObjectName("ActionButton")
-        self.paste_json_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.paste_json_button.clicked.connect(self._import_from_json)
-
+        # Add Server button
         self.add_server_button = QPushButton("+ Add Server")
         self.add_server_button.setObjectName("AddServerButton")
         self.add_server_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.add_server_button.clicked.connect(self._add_new_server)
+        left_layout.addWidget(self.add_server_button)
 
-        servers_header_layout.addWidget(self.check_all_button)
-        servers_header_layout.addWidget(self.paste_json_button)
-        servers_header_layout.addWidget(self.add_server_button)
+        self.server_list = QListWidget()
+        self.server_list.setObjectName("ServerList")
+        self.server_list.currentItemChanged.connect(self._on_server_selected)
+        left_layout.addWidget(self.server_list)
 
-        servers_layout.addWidget(servers_header_bar)
+        # Right: tabs (Logs, Config)
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(6)
 
-        # Servers List
-        servers_list_widget = QWidget()
-        self.grid_layout = QGridLayout(servers_list_widget)
-        self.grid_layout.setContentsMargins(0, 10, 0, 0)
-        self.grid_layout.setHorizontalSpacing(40)
-        self.grid_layout.setVerticalSpacing(15)
+        # Control buttons row (outside tabs)
+        controls_row = QHBoxLayout()
+        controls_row.setContentsMargins(0, 0, 0, 0)
+        controls_row.setSpacing(6)
 
-        # Set column stretch
-        self.grid_layout.setColumnStretch(0, 0)  # Status
-        self.grid_layout.setColumnStretch(1, 1)  # Server ID
-        self.grid_layout.setColumnStretch(2, 1)  # Command
-        self.grid_layout.setColumnStretch(3, 1)  # Arguments
-        self.grid_layout.setColumnStretch(4, 1)  # Env Variables
-        self.grid_layout.setColumnStretch(5, 0)  # Actions
+        self.start_button = QPushButton("Start")
+        self.stop_button = QPushButton("Stop")
+        self.delete_button = QPushButton("Delete")
+        for b in (self.start_button, self.stop_button, self.delete_button):
+            b.setObjectName("ActionButton")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.start_button.clicked.connect(self._on_start_clicked)
+        self.stop_button.clicked.connect(self._on_stop_clicked)
+        self.delete_button.clicked.connect(self._on_delete_clicked)
 
-        self._create_server_list_header()
+        controls_row.addWidget(self.start_button)
+        controls_row.addWidget(self.stop_button)
+        controls_row.addWidget(self.delete_button)
+        controls_row.addStretch()
 
-        # Separator before first item
-        line_separator = QFrame()
-        line_separator.setFrameShape(QFrame.Shape.HLine)
-        line_separator.setObjectName("Separator")
-        self.grid_layout.addWidget(line_separator, 1, 0, 1, 6)
+        right_layout.addLayout(controls_row)
 
-        # Servers will be added in _load_sample_data
-        self.servers_list_widget = servers_list_widget
+        self.tabs = QTabWidget()
+        right_layout.addWidget(self.tabs)
 
-        servers_layout.addWidget(servers_list_widget)
-        self.container_layout.addWidget(servers_container)
+        # Logs tab
+        logs_tab = QWidget()
+        logs_layout = QVBoxLayout(logs_tab)
+        logs_layout.setContentsMargins(0, 0, 0, 0)
+        logs_layout.setSpacing(6)
 
-    def _create_server_list_header(self):
-        headers = ["Status", "Server ID", "Command", "Arguments", "Env Variables", "Actions"]
-        for i, header_text in enumerate(headers):
-            label = QLabel(header_text)
-            label.setObjectName("GridHeader")
-            self.grid_layout.addWidget(label, 0, i, Qt.AlignmentFlag.AlignLeft)
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        self.log_display.setObjectName("LogDisplay")
 
-        # Add a row for the "No servers" message
-        self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
-        self.no_servers_label.setObjectName("NoServersLabel")
-        self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
-        self.no_servers_label.hide()
-        
-        # Note: Don't show the message here - it will be handled after servers are loaded
+        logs_layout.addWidget(self.log_display)
 
-    def _add_server_row(self, server_config, row):
-        # Remove "no servers" message if shown
-        if self.no_servers_label.isVisible():
-            self.no_servers_label.hide()
+        self.tabs.addTab(logs_tab, "Logs")
 
-        # Status
-        status_label = QLabel("Offline")
-        if server_config.status == "online":
-            status_label.setObjectName("StatusOnline")
-        elif server_config.status == "error":
-            status_label.setObjectName("StatusError")
+        # Config tab
+        self.config_panel = ServerEditorPanel(self)
+        self.config_panel.saved.connect(self._on_config_saved)
+        self.tabs.addTab(self.config_panel, "Config")
+
+        # Assemble row
+        main_row.addWidget(left_widget, 1)
+        main_row.addWidget(right_widget, 3)
+
+        self.container_layout.addLayout(main_row)
+
+        # Internal state
+        self.selected_server_id = None
+        self._update_controls_enabled()
+
+    def _populate_server_list(self):
+        self.server_list.clear()
+        self.server_item_widgets = {}
+        for s in self.servers:
+            item = QListWidgetItem()
+            item.setData(Qt.ItemDataRole.UserRole, s.id)
+            # Item sizing
+            item.setSizeHint(QSize(10, 36))
+            widget = ServerListItemWidget(s, self.server_list)
+            self.server_item_widgets[s.id] = widget
+            self.server_list.addItem(item)
+            self.server_list.setItemWidget(item, widget)
+        # Select first item if available
+        if self.server_list.count() > 0:
+            self.server_list.setCurrentRow(0)
         else:
-            status_label.setObjectName("StatusOffline")
-        status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.grid_layout.addWidget(status_label, row, 0)
-        server_config.status_label = status_label
+            self.selected_server_id = None
+            self.log_display.clear()
+            self._update_controls_enabled()
 
-        # Server ID
-        self.grid_layout.addWidget(QLabel(server_config.id), row, 1)
+    def _on_server_selected(self, current, previous):
+        server_id = None
+        if current is not None:
+            server_id = current.data(Qt.ItemDataRole.UserRole)
+        self.selected_server_id = server_id
+        self._update_controls_enabled()
+        if server_id:
+            self._show_logs_for_server_id(server_id)
+            server = self._find_server_by_id(server_id)
+            if server and hasattr(self, 'config_panel'):
+                self.config_panel.load_config(server)
+                # Enable editing only when offline
+                self.config_panel.setEnabled(server.status == "offline")
+        else:
+            if hasattr(self, 'config_panel'):
+                self.config_panel.load_config(None)
+                self.config_panel.setEnabled(False)
 
-        # Command
-        self.grid_layout.addWidget(QLabel(server_config.command), row, 2)
+    def _show_logs_for_server_id(self, server_id):
+        logs = self.process_manager.get_logs(server_id)
+        self.log_display.setText(logs)
+        # Scroll to bottom
+        cursor = self.log_display.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        self.log_display.setTextCursor(cursor)
 
-        # Arguments
-        args_str = " ".join(server_config.arguments)
-        self.grid_layout.addWidget(QLabel(args_str), row, 3)
+    def _on_logs_updated(self, server_id):
+        if self.selected_server_id == server_id:
+            self._show_logs_for_server_id(server_id)
 
-        # Env Variables
-        env_str = ", ".join([f"{k}={v}" for k, v in server_config.env_vars.items()])
-        self.grid_layout.addWidget(QLabel(env_str), row, 4)
+    def _on_config_saved(self, updated_config: ServerConfig):
+        if not self.selected_server_id:
+            return
+        server = self._find_server_by_id(self.selected_server_id)
+        if not server:
+            return
+        if server.status != "offline":
+            QMessageBox.information(self, "Server Running", "Stop the server before editing its configuration.")
+            return
+        # Duplicate ID check (allow unchanged ID)
+        if updated_config.id != server.id and any(s.id == updated_config.id for s in self.servers):
+            QMessageBox.warning(self, "Duplicate ID", f"A server with ID '{updated_config.id}' already exists.")
+            return
+        # Preserve runtime status
+        updated_config.status = server.status
+        old_id = server.id
+        new_id = updated_config.id
+        # Replace in list
+        for i, s in enumerate(self.servers):
+            if s.id == old_id:
+                self.servers[i] = updated_config
+                break
+        # Migrate logs if ID changed
+        if new_id != old_id:
+            if hasattr(self.process_manager, 'logs') and old_id in self.process_manager.logs:
+                self.process_manager.logs[new_id] = self.process_manager.logs.pop(old_id)
+            self.selected_server_id = new_id
+        # Save and refresh UI
+        self._save_servers_to_file()
+        self._populate_server_list()
+        # Reselect updated server
+        for i in range(self.server_list.count()):
+            item = self.server_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == new_id:
+                self.server_list.setCurrentRow(i)
+                break
+        # Ensure editor shows the saved config and enabled state
+        if hasattr(self, 'config_panel'):
+            self.config_panel.load_config(updated_config)
+            self.config_panel.setEnabled(updated_config.status == "offline")
 
-        # Actions
-        actions_widget = QWidget()
-        actions_layout = QHBoxLayout(actions_widget)
-        actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(10)
+    def _on_clear_logs_clicked(self):
+        if not self.selected_server_id:
+            return
+        self.process_manager.clear_logs(self.selected_server_id)
+        self.log_display.clear()
 
-        start_stop_button = QPushButton("Start" if server_config.status == "offline" else "Stop")
-        start_stop_button.setObjectName("ActionButton")
-        start_stop_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        start_stop_button.clicked.connect(lambda: self._toggle_server(server_config))
-        server_config.start_stop_button = start_stop_button  # Store reference for status updates
 
-        edit_button = QPushButton("Edit")
-        edit_button.setObjectName("ActionButton")
-        edit_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        edit_button.clicked.connect(lambda: self._edit_server(server_config))
+    def _find_server_by_id(self, server_id):
+        return next((s for s in self.servers if s.id == server_id), None)
 
-        logs_button = QPushButton("View Logs")
-        logs_button.setObjectName("ActionButton")
-        logs_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        logs_button.clicked.connect(lambda: self._view_logs(server_config))
+    def _on_start_clicked(self):
+        if not self.selected_server_id:
+            return
+        # Switch to Logs tab and show current logs
+        if hasattr(self, 'tabs'):
+            self.tabs.setCurrentIndex(0)
+        self._show_logs_for_server_id(self.selected_server_id)
+        server = self._find_server_by_id(self.selected_server_id)
+        if server and server.status == "offline":
+            self.process_manager.start_server(server)
 
-        delete_button = QPushButton("Delete")
-        delete_button.setObjectName("ActionButton")
-        delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        delete_button.clicked.connect(lambda: self._delete_server(server_config))
+    def _on_stop_clicked(self):
+        if not self.selected_server_id:
+            return
+        # Switch to Logs tab and show current logs
+        if hasattr(self, 'tabs'):
+            self.tabs.setCurrentIndex(0)
+        self._show_logs_for_server_id(self.selected_server_id)
+        server = self._find_server_by_id(self.selected_server_id)
+        if server and server.status != "offline":
+            self.process_manager.stop_server(server.id)
 
-        actions_layout.addWidget(start_stop_button)
-        actions_layout.addWidget(edit_button)
-        actions_layout.addWidget(logs_button)
-        actions_layout.addWidget(delete_button)
+    def _on_delete_clicked(self):
+        if not self.selected_server_id:
+            return
+        server = self._find_server_by_id(self.selected_server_id)
+        if not server:
+            return
+        # Stop if running
+        self.process_manager.stop_server(server.id)
+        # Remove from list and UI
+        self.servers = [s for s in self.servers if s.id != server.id]
+        self._save_servers_to_file()
+        self._populate_server_list()
+        # Clear logs view if deleted server was selected
+        self.log_display.clear()
 
-        self.grid_layout.addWidget(actions_widget, row, 5, Qt.AlignmentFlag.AlignRight)
-        server_config.actions_widget = actions_widget
-
-        # Row separator
-        line_separator = QFrame()
-        line_separator.setFrameShape(QFrame.Shape.HLine)
-        line_separator.setObjectName("Separator")
-        self.grid_layout.addWidget(line_separator, row + 1, 0, 1, 6)
-
-        # Store the row index for this server
-        self.server_rows[server_config.id] = row
-
-    def _create_footer(self):
-        footer_widget = QWidget()
-        footer_widget.setObjectName("Footer")
-        footer_layout = QHBoxLayout(footer_widget)
-        footer_layout.setContentsMargins(0, 10, 0, 10)
-
-        footer_label = QLabel("MCP Manager - Manage your Model Context Protocol servers")
-        footer_label.setObjectName("FooterLabel")
-
-        footer_layout.addStretch()
-        footer_layout.addWidget(footer_label)
-        footer_layout.addStretch()
-
-        self.main_layout.addWidget(footer_widget)
+    def _update_controls_enabled(self):
+        has_selection = self.selected_server_id is not None
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(False)
+        self.delete_button.setEnabled(has_selection)
+        if hasattr(self, 'config_panel'):
+            # Enable config tab panel only if a server is selected and offline
+            if has_selection:
+                server = self._find_server_by_id(self.selected_server_id)
+                self.config_panel.setEnabled(bool(server and server.status == "offline"))
+            else:
+                self.config_panel.setEnabled(False)
+        if has_selection:
+            server = self._find_server_by_id(self.selected_server_id)
+            if server:
+                self.start_button.setEnabled(server.status == "offline")
+                self.stop_button.setEnabled(server.status != "offline")
 
     def _load_servers_from_file(self):
         """Load server configurations from the config file"""
@@ -285,14 +542,8 @@ class MCPManagerWindow(QMainWindow):
                         if isinstance(item, dict):
                             self.servers.append(ServerConfig.from_dict(item))
                     
-                    # Add servers to UI
-                    for i, server in enumerate(self.servers):
-                        self._add_server_row(server, i + 2)
-                    
-                    # Show no servers message if list is empty
-                    if not self.servers:
-                        self._show_no_servers_message()
-                    
+                    # Populate the left-side server list
+                    self._populate_server_list()
                     return
             except Exception as e:
                 print(f"Error loading config file: {e}")
@@ -322,13 +573,8 @@ class MCPManagerWindow(QMainWindow):
 
         self.servers = [sample_server1, sample_server2]
 
-        # Add servers to UI
-        for i, server in enumerate(self.servers):
-            self._add_server_row(server, i + 2)
-        
-        # Show no servers message if list is empty (shouldn't happen with sample data)
-        if not self.servers:
-            self._show_no_servers_message()
+        # Populate the left-side server list
+        self._populate_server_list()
         
         # Save the sample data to file for future use
         self._save_servers_to_file()
@@ -347,63 +593,21 @@ class MCPManagerWindow(QMainWindow):
         dialog = ServerEditorDialog(parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             new_config = dialog.get_config()
+            # Prevent duplicate IDs
+            if any(s.id == new_config.id for s in self.servers):
+                QMessageBox.warning(self, "Duplicate ID", f"A server with ID '{new_config.id}' already exists.")
+                return
             self.servers.append(new_config)
-            row = len(self.servers) + 1
-            self._add_server_row(new_config, row)
             self._save_servers_to_file()
+            # Refresh list and select the newly added server
+            self._populate_server_list()
+            # Find and select the new item
+            for i in range(self.server_list.count()):
+                item = self.server_list.item(i)
+                if item.data(Qt.ItemDataRole.UserRole) == new_config.id:
+                    self.server_list.setCurrentRow(i)
+                    break
 
-    def _edit_server(self, server_config):
-        """Open dialog to edit existing server"""
-        dialog = ServerEditorDialog(server_config, self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            updated_config = dialog.get_config()
-            # Update the server config
-            server_config.__dict__.update(updated_config.__dict__)
-            # TODO: Refresh the row
-            self._save_servers_to_file()
-
-    def _delete_server(self, server_config):
-        """Delete a server configuration"""
-        # Stop server if running
-        self.process_manager.stop_server(server_config.id)
-
-        # Remove from list
-        self.servers = [s for s in self.servers if s.id != server_config.id]
-
-        # Remove from UI
-        row = self.server_rows.get(server_config.id)
-        if row:
-            # Remove all widgets in the row
-            for col in range(6):
-                item = self.grid_layout.itemAtPosition(row, col)
-                if item and item.widget():
-                    item.widget().deleteLater()
-
-            # Remove separator
-            sep_row = row + 1
-            for col in range(6):
-                item = self.grid_layout.itemAtPosition(sep_row, col)
-                if item and item.widget():
-                    item.widget().deleteLater()
-
-            # Remove row mapping
-            del self.server_rows[server_config.id]
-
-        # Show "no servers" message if empty
-        if not self.servers:
-            self._show_no_servers_message()
-        
-        # Save changes to file
-        self._save_servers_to_file()
-
-    def _toggle_server(self, server_config):
-        """Start or stop a server"""
-        if server_config.status == "offline":
-            self.process_manager.start_server(server_config)
-            # Automatically open log viewer to show startup progress
-            self._view_logs(server_config)
-        else:
-            self.process_manager.stop_server(server_config.id)
 
     def _check_statuses(self):
         """Check status of all servers"""
@@ -419,19 +623,29 @@ class MCPManagerWindow(QMainWindow):
 
         server.status = status
         
+        # Update item traffic light in the list
+        widget = self.server_item_widgets.get(server_id) if hasattr(self, 'server_item_widgets') else None
+        if widget:
+            widget.update_status(status)
+        
+        # Update controls based on new status
+        if hasattr(self, '_update_controls_enabled'):
+            self._update_controls_enabled()
+        
         # Update status label
-        if server.status_label:
-            server.status_label.setText(status.capitalize())
+        status_label = getattr(server, 'status_label', None)
+        if status_label:
+            status_label.setText(status.capitalize())
 
             # Update style
             if status == "online":
-                server.status_label.setObjectName("StatusOnline")
+                status_label.setObjectName("StatusOnline")
             elif status == "error":
-                server.status_label.setObjectName("StatusError")
+                status_label.setObjectName("StatusError")
             else:
-                server.status_label.setObjectName("StatusOffline")
-            server.status_label.style().unpolish(server.status_label)
-            server.status_label.style().polish(server.status_label)
+                status_label.setObjectName("StatusOffline")
+            status_label.style().unpolish(status_label)
+            status_label.style().polish(status_label)
         
         # Update start/stop button text
         if hasattr(server, 'start_stop_button') and server.start_stop_button:
@@ -457,82 +671,6 @@ class MCPManagerWindow(QMainWindow):
             self.process_manager.logs[server_id].append(f"ERROR: {error}")
             self.process_manager.logs_updated.emit(server_id)
 
-    def _view_logs(self, server_config):
-        """View logs for a server"""
-        from log_viewer_dialog import LogViewerDialog
-        logs = self.process_manager.get_logs(server_config.id)
-        dialog = LogViewerDialog(server_config.id, logs, self)
-        dialog.exec()
-
-    def _view_json(self):
-        """Show JSON representation of all servers with export option"""
-        from json_io import build_json_view_dialog
-        dialog = build_json_view_dialog(self, self.servers, self._export_to_json)
-        dialog.exec()
-
-    def _import_from_json(self):
-        """Import server configurations from JSON"""
-        from json_io import select_and_load_servers
-        new_servers = select_and_load_servers(self)
-        if not new_servers:
-            return
-
-        # Stop all running servers
-        for server in self.servers:
-            self.process_manager.stop_server(server.id)
-
-        # Replace the current server list
-        self.servers = new_servers
-
-        # Clear the current UI grid
-        self._clear_servers_grid()
-
-        # Rebuild the UI with the new servers
-        for i, server in enumerate(self.servers):
-            self._add_server_row(server, i + 2)
-        
-        # Save the imported servers to file
-        self._save_servers_to_file()
-
-    def _export_to_json(self):
-        """Export server configurations to JSON file"""
-        from json_io import select_and_save_servers
-        select_and_save_servers(self, self.servers)
-
-    def _clear_servers_grid(self):
-        """Clear the servers grid except the header and separator"""
-        # Remove all rows except the first two (header and separator)
-        for row in range(self.grid_layout.rowCount() - 1, 1, -1):
-            for col in range(self.grid_layout.columnCount()):
-                item = self.grid_layout.itemAtPosition(row, col)
-                if item and item.widget():
-                    item.widget().deleteLater()
-
-        # Clear the server_rows dictionary
-        self.server_rows = {}
-
-        # Show the "no servers" message if the list is empty
-        if not self.servers:
-            self._show_no_servers_message()
-    
-    def _show_no_servers_message(self):
-        """Show the no servers message, creating it if necessary"""
-        try:
-            # Check if the label still exists and is valid
-            if hasattr(self, 'no_servers_label') and self.no_servers_label is not None:
-                self.no_servers_label.show()
-            else:
-                # Recreate the label if it was deleted
-                self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
-                self.no_servers_label.setObjectName("NoServersLabel")
-                self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
-                self.no_servers_label.show()
-        except RuntimeError:
-            # Handle case where the widget was deleted
-            self.no_servers_label = QLabel("No MCP servers configured. Click '+ Add Server' to get started.")
-            self.no_servers_label.setObjectName("NoServersLabel")
-            self.grid_layout.addWidget(self.no_servers_label, 2, 0, 1, 6, Qt.AlignmentFlag.AlignCenter)
-            self.no_servers_label.show()
 
     def _get_style_sheet(self):
         # Delegated to external module for maintainability

@@ -1,5 +1,6 @@
 import os
-import signal
+import subprocess
+import shlex
 from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, pyqtSignal
 from models import ServerConfig
 
@@ -31,13 +32,33 @@ class ProcessManager(QObject):
             self.logs[server_id].append(f"Working directory: {config.working_dir}")
         if config.env_vars:
             self.logs[server_id].append(f"Environment variables: {config.env_vars}")
+
+        # Build shell-wrapped command so user shell environment is available
+        if os.name == 'nt':
+            shell = os.environ.get('COMSPEC', 'cmd.exe')
+            # Properly quote the command line for cmd.exe
+            full_cmd = subprocess.list2cmdline([config.command] + list(config.arguments))
+            shell_args = ['/C', full_cmd]
+        else:
+            shell = os.environ.get('SHELL', '/bin/bash') or '/bin/bash'
+            # Safely quote for POSIX shells
+            try:
+                full_cmd = shlex.join([config.command] + list(config.arguments))
+            except AttributeError:
+                # Fallback if shlex.join is unavailable
+                full_cmd = ' '.join(shlex.quote(x) for x in [config.command] + list(config.arguments))
+            # Use a login shell to load user profiles, and execute the command
+            shell_args = ['-lc', full_cmd]
+
+        self.logs[server_id].append(f"Shell: {shell}")
+        self.logs[server_id].append(f"Shell command: {shell} {' '.join(shell_args)}")
         self.logs[server_id].append("--- Server Output ---")
         self.logs_updated.emit(server_id)
         
         # Create and configure process
         process = QProcess()
-        process.setProgram(config.command)
-        process.setArguments(config.arguments)
+        process.setProgram(shell)
+        process.setArguments(shell_args)
         
         # Set environment variables
         env = QProcessEnvironment.systemEnvironment()
