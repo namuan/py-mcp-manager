@@ -55,9 +55,6 @@ dist/
 *.egg-info/
 *.egg
 
-# PyInstaller
-*.spec
-
 # Configuration files
 mcp_servers.json
 
@@ -67,4 +64,3 @@ mcp_servers.json
 # Temporary files
 *.tmp
 *.temp
-mcp_servers.json

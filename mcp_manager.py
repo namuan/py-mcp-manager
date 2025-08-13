@@ -757,18 +757,18 @@ class MCPManagerWindow(QMainWindow):
     def _handle_server_output(self, server_id, output):
         """Handle server output without showing alerts"""
         print(f"Server {server_id} output: {output}")
-        # Store output in ProcessManager logs
+        # Output is already stored in ProcessManager logs by _handle_stdout
+        # Just emit the logs_updated signal
         if hasattr(self.process_manager, "logs") and server_id in self.process_manager.logs:
-            self.process_manager.logs[server_id].append(output)
             self.process_manager.logs_updated.emit(server_id)
 
     def _handle_server_error(self, server_id, error):
         """Handle server errors without showing alerts"""
         print(f"Server {server_id} error: {error}")
         self._update_server_status(server_id, "error")
-        # Store error in ProcessManager logs
+        # Error is already stored in ProcessManager logs by _handle_stderr
+        # Just emit the logs_updated signal
         if hasattr(self.process_manager, "logs") and server_id in self.process_manager.logs:
-            self.process_manager.logs[server_id].append(f"ERROR: {error}")
             self.process_manager.logs_updated.emit(server_id)
 
     def _get_style_sheet(self):

@@ -26,13 +26,17 @@ build: clean-build ## Build wheel file
 .PHONY: clean-build
 clean-build: ## Clean build artifacts
 	@echo "🚀 Removing build artifacts"
-	@uv run python -c "import shutil; import os; shutil.rmtree('dist') if os.path.exists('dist') else None"
+	@uv run python -c "import shutil; import os; shutil.rmtree('dist', ignore_errors=True); shutil.rmtree('build', ignore_errors=True)"
 
-package: clean-build ## Run installer
-	uv run pyinstaller mcp_manager.spec
+.PHONY: package
+package: clean-build ## Create macOS .app bundle
+	@echo "🚀 Creating macOS .app bundle"
+	@uv run pyinstaller mcp_manager.spec
 
-install-macosx: package ## Installs application in users Application folder
-	./scripts/install-macosx.sh MCPManager.app
+.PHONY: install-macosx
+install-macosx: package ## Install application in user's Applications folder
+	@echo "🚀 Installing MCP Manager to Applications folder"
+	@cp -R "dist/MCP Manager.app" "/Applications/" 2>/dev/null || echo "Failed to copy to /Applications/. You may need to run with sudo or copy manually."
 
 .PHONY: help
 help:
