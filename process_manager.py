@@ -1,7 +1,9 @@
 import os
-import subprocess
 import shlex
+import subprocess
+
 from PyQt6.QtCore import QObject, QProcess, QProcessEnvironment, pyqtSignal
+
 from models import ServerConfig
 
 
@@ -17,6 +19,7 @@ class ProcessManager(QObject):
         self.configs = {}  # server_id: ServerConfig
         self.logs = {}  # server_id: list of log entries
 
+    # ruff: noqa: C901
     def start_server(self, config: ServerConfig):
         """Start a server process using its configuration"""
         server_id = config.id
@@ -28,9 +31,7 @@ class ProcessManager(QObject):
         # Initialize logs for this server
         self.logs[server_id] = []
         self.logs[server_id].append(f"Starting server '{server_id}'...")
-        self.logs[server_id].append(
-            f"Command: {config.command} {' '.join(config.arguments)}"
-        )
+        self.logs[server_id].append(f"Command: {config.command} {" ".join(config.arguments)}")
         if config.working_dir:
             self.logs[server_id].append(f"Working directory: {config.working_dir}")
         if config.env_vars:
@@ -40,25 +41,21 @@ class ProcessManager(QObject):
         if os.name == "nt":
             shell = os.environ.get("COMSPEC", "cmd.exe")
             # Properly quote the command line for cmd.exe
-            full_cmd = subprocess.list2cmdline(
-                [config.command] + list(config.arguments)
-            )
+            full_cmd = subprocess.list2cmdline([config.command, *list(config.arguments)])
             shell_args = ["/C", full_cmd]
         else:
             shell = os.environ.get("SHELL", "/bin/bash") or "/bin/bash"
             # Safely quote for POSIX shells
             try:
-                full_cmd = shlex.join([config.command] + list(config.arguments))
+                full_cmd = shlex.join([config.command, *list(config.arguments)])
             except AttributeError:
                 # Fallback if shlex.join is unavailable
-                full_cmd = " ".join(
-                    shlex.quote(x) for x in [config.command] + list(config.arguments)
-                )
+                full_cmd = " ".join(shlex.quote(x) for x in [config.command, *list(config.arguments)])
             # Use a login shell to load user profiles, and execute the command
             shell_args = ["-lc", full_cmd]
 
         self.logs[server_id].append(f"Shell: {shell}")
-        self.logs[server_id].append(f"Shell command: {shell} {' '.join(shell_args)}")
+        self.logs[server_id].append(f"Shell command: {shell} {" ".join(shell_args)}")
         self.logs[server_id].append("--- Server Output ---")
         self.logs_updated.emit(server_id)
 
@@ -78,19 +75,11 @@ class ProcessManager(QObject):
             process.setWorkingDirectory(config.working_dir)
 
         # Connect signals
-        process.readyReadStandardOutput.connect(
-            lambda: self._handle_stdout(server_id, process)
-        )
-        process.readyReadStandardError.connect(
-            lambda: self._handle_stderr(server_id, process)
-        )
-        process.stateChanged.connect(
-            lambda state: self._handle_state_change(server_id, state)
-        )
+        process.readyReadStandardOutput.connect(lambda: self._handle_stdout(server_id, process))
+        process.readyReadStandardError.connect(lambda: self._handle_stderr(server_id, process))
+        process.stateChanged.connect(lambda state: self._handle_state_change(server_id, state))
         process.finished.connect(
-            lambda exit_code, exit_status: self._handle_finished(
-                server_id, exit_code, exit_status
-            )
+            lambda exit_code, exit_status: self._handle_finished(server_id, exit_code, exit_status)
         )
 
         # Start process
@@ -117,7 +106,7 @@ class ProcessManager(QObject):
             return True
 
         except Exception as e:
-            error_msg = f"Exception starting process: {str(e)}"
+            error_msg = f"Exception starting process: {e!s}"
             self.logs[server_id].append(f"ERROR: {error_msg}")
             self.logs_updated.emit(server_id)
             self.error_occurred.emit(server_id, error_msg)

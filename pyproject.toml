@@ -1,8 +1,101 @@
 [project]
 name = "py-mcp-manager"
 version = "0.1.0"
-description = "Add your description here"
+description = "A desktop application for managing Model Context Protocol (MCP) servers"
+authors = [{ name = "Namuan", email = "namuan@deskriders.dev" }]
+readme = "README.md"
+keywords = ['python', 'mcp', 'model-context-protocol', 'server-management', 'gui']
 requires-python = ">=3.12"
-dependencies = [
-    "pyqt6>=6.9.1",
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "pyqt6>=6.7.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/namuan/py-mcp-manager"
+Repository = "https://github.com/namuan/py-mcp-manager"
+Documentation = "https://github.com/namuan/py-mcp-manager/blob/main/README.md"
+
+[project.scripts]
+mcp-manager = "mcp_manager:main"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.2.0",
+    "pre-commit>=2.20.0",
+    "tox-uv>=1.11.3",
+    "ruff>=0.6.9",
+    "pyinstaller>=6.15.0",
+]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# For single module files, we don't need py-modules when using script entry points
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E", "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+    "TRY300",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+preview = true

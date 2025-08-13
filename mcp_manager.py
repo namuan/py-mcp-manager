@@ -1,29 +1,29 @@
-import sys
-import os
 import json
+import os
+import sys
 
-from PyQt6.QtCore import Qt, QTimer, QSize, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
     QDialog,
-    QMessageBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QTextEdit,
-    QTabWidget,
-    QFormLayout,
-    QLineEdit,
-    QHeaderView,
-    QAbstractItemView,
-    QFileDialog,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from models import ServerConfig
@@ -95,9 +95,7 @@ class ServerEditorPanel(QWidget):
         layout.setSpacing(6)
 
         form_layout = QFormLayout()
-        form_layout.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
-        )
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.id_input = QLineEdit()
         form_layout.addRow("Server ID:", self.id_input)
@@ -124,12 +122,8 @@ class ServerEditorPanel(QWidget):
         self.args_table = QTableWidget()
         self.args_table.setColumnCount(1)
         self.args_table.setHorizontalHeaderLabels(["Argument"])
-        self.args_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-        self.args_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
+        self.args_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.args_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         args_btns = QHBoxLayout()
         add_arg = QPushButton("Add Argument")
@@ -148,15 +142,9 @@ class ServerEditorPanel(QWidget):
         self.env_table = QTableWidget()
         self.env_table.setColumnCount(2)
         self.env_table.setHorizontalHeaderLabels(["Variable", "Value"])
-        self.env_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-        self.env_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Stretch
-        )
-        self.env_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
+        self.env_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.env_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.env_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         env_btns = QHBoxLayout()
         add_env = QPushButton("Add Variable")
@@ -462,6 +450,7 @@ class MCPManagerWindow(QMainWindow):
         if self.selected_server_id == server_id:
             self._show_logs_for_server_id(server_id)
 
+    # ruff: noqa: C901
     def _on_config_saved(self, updated_config: ServerConfig):
         if not self.selected_server_id:
             return
@@ -476,9 +465,7 @@ class MCPManagerWindow(QMainWindow):
             )
             return
         # Duplicate ID check (allow unchanged ID)
-        if updated_config.id != server.id and any(
-            s.id == updated_config.id for s in self.servers
-        ):
+        if updated_config.id != server.id and any(s.id == updated_config.id for s in self.servers):
             QMessageBox.warning(
                 self,
                 "Duplicate ID",
@@ -496,13 +483,8 @@ class MCPManagerWindow(QMainWindow):
                 break
         # Migrate logs if ID changed
         if new_id != old_id:
-            if (
-                hasattr(self.process_manager, "logs")
-                and old_id in self.process_manager.logs
-            ):
-                self.process_manager.logs[new_id] = self.process_manager.logs.pop(
-                    old_id
-                )
+            if hasattr(self.process_manager, "logs") and old_id in self.process_manager.logs:
+                self.process_manager.logs[new_id] = self.process_manager.logs.pop(old_id)
             self.selected_server_id = new_id
         # Save and refresh UI
         self._save_servers_to_file()
@@ -585,9 +567,7 @@ class MCPManagerWindow(QMainWindow):
             # Enable config tab panel only if a server is selected and offline
             if has_selection:
                 server = self._find_server_by_id(self.selected_server_id)
-                self.config_panel.setEnabled(
-                    bool(server and server.status == "offline")
-                )
+                self.config_panel.setEnabled(bool(server and server.status == "offline"))
             else:
                 self.config_panel.setEnabled(False)
         if has_selection:
@@ -600,7 +580,7 @@ class MCPManagerWindow(QMainWindow):
         """Load server configurations from the config file"""
         if os.path.exists(self.CONFIG_FILE):
             try:
-                with open(self.CONFIG_FILE, "r") as f:
+                with open(self.CONFIG_FILE) as f:
                     data = json.load(f)
 
                 if isinstance(data, list):
@@ -609,9 +589,7 @@ class MCPManagerWindow(QMainWindow):
                         if isinstance(item, dict):
                             self.servers.append(ServerConfig.from_dict(item))
 
-                    print(
-                        f"[DEBUG] Loaded servers from file: {[s.id for s in self.servers]}"
-                    )
+                    print(f"[DEBUG] Loaded servers from file: {[s.id for s in self.servers]}")
                     # Populate the left-side server list
                     self._populate_server_list()
                     return
@@ -654,9 +632,7 @@ class MCPManagerWindow(QMainWindow):
         """Save current server configurations to the config file"""
         try:
             configs = [s.to_dict() for s in self.servers]
-            print(
-                f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}"
-            )
+            print(f"[DEBUG] Saving servers to {self.CONFIG_FILE}: {[s.id for s in self.servers]}")
             with open(self.CONFIG_FILE, "w") as f:
                 json.dump(configs, f, indent=2)
         except Exception as e:
@@ -690,9 +666,7 @@ class MCPManagerWindow(QMainWindow):
         """Clone the currently selected server configuration"""
         if not self.selected_server_id:
             print("[DEBUG] Clone attempt with no server selected")
-            QMessageBox.information(
-                self, "No Server Selected", "Please select a server to clone."
-            )
+            QMessageBox.information(self, "No Server Selected", "Please select a server to clone.")
             return
 
         server = self._find_server_by_id(self.selected_server_id)
@@ -713,7 +687,7 @@ class MCPManagerWindow(QMainWindow):
             new_id = f"{base_id}_{count}"
             count += 1
 
-        print(f"[DEBUG] Generated new clone ID: {new_id} (after {count-1} attempts)")
+        print(f"[DEBUG] Generated new clone ID: {new_id} (after {count - 1} attempts)")
         new_config.id = new_id
 
         # Reset status to offline
@@ -750,11 +724,7 @@ class MCPManagerWindow(QMainWindow):
         server.status = status
 
         # Update item traffic light in the list
-        widget = (
-            self.server_item_widgets.get(server_id)
-            if hasattr(self, "server_item_widgets")
-            else None
-        )
+        widget = self.server_item_widgets.get(server_id) if hasattr(self, "server_item_widgets") else None
         if widget:
             widget.update_status(status)
 
@@ -788,10 +758,7 @@ class MCPManagerWindow(QMainWindow):
         """Handle server output without showing alerts"""
         print(f"Server {server_id} output: {output}")
         # Store output in ProcessManager logs
-        if (
-            hasattr(self.process_manager, "logs")
-            and server_id in self.process_manager.logs
-        ):
+        if hasattr(self.process_manager, "logs") and server_id in self.process_manager.logs:
             self.process_manager.logs[server_id].append(output)
             self.process_manager.logs_updated.emit(server_id)
 
@@ -800,10 +767,7 @@ class MCPManagerWindow(QMainWindow):
         print(f"Server {server_id} error: {error}")
         self._update_server_status(server_id, "error")
         # Store error in ProcessManager logs
-        if (
-            hasattr(self.process_manager, "logs")
-            and server_id in self.process_manager.logs
-        ):
+        if hasattr(self.process_manager, "logs") and server_id in self.process_manager.logs:
             self.process_manager.logs[server_id].append(f"ERROR: {error}")
             self.process_manager.logs_updated.emit(server_id)
 
@@ -814,8 +778,13 @@ class MCPManagerWindow(QMainWindow):
         return get_style_sheet()
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the application"""
     app = QApplication(sys.argv)
     window = MCPManagerWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

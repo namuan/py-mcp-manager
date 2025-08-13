@@ -2,13 +2,13 @@ import sys
 
 from PyQt6.QtGui import QFont, QTextCursor
 from PyQt6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QTextEdit,
-    QPushButton,
-    QHBoxLayout,
     QApplication,
+    QDialog,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
 )
 
 
@@ -78,9 +78,7 @@ class LogViewerDialog(QDialog):
         """Disconnect signals when dialog is closed"""
         if self.parent_window and hasattr(self.parent_window, "process_manager"):
             try:
-                self.parent_window.process_manager.logs_updated.disconnect(
-                    self._on_logs_updated
-                )
+                self.parent_window.process_manager.logs_updated.disconnect(self._on_logs_updated)
             except TypeError:
                 # Signal was already disconnected
                 pass

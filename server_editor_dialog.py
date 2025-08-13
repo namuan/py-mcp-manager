@@ -1,17 +1,17 @@
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
     QLineEdit,
+    QMessageBox,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QPushButton,
-    QFileDialog,
-    QHeaderView,
-    QAbstractItemView,
-    QLabel,
-    QMessageBox,
+    QVBoxLayout,
 )
 
 from models import ServerConfig
@@ -32,9 +32,7 @@ class ServerEditorDialog(QDialog):
 
         # Form layout for basic fields
         form_layout = QFormLayout()
-        form_layout.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
-        )
+        form_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.id_input = QLineEdit()
         self.id_input.setText(self.config.id)
@@ -65,21 +63,15 @@ class ServerEditorDialog(QDialog):
         self.args_table = QTableWidget()
         self.args_table.setColumnCount(1)
         self.args_table.setHorizontalHeaderLabels(["Argument"])
-        self.args_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-        self.args_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
+        self.args_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.args_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._populate_table(self.args_table, self.config.arguments)
 
         args_btn_layout = QHBoxLayout()
         add_arg_btn = QPushButton("Add Argument")
         add_arg_btn.clicked.connect(lambda: self._add_table_row(self.args_table))
         remove_arg_btn = QPushButton("Remove Selected")
-        remove_arg_btn.clicked.connect(
-            lambda: self._remove_selected_rows(self.args_table)
-        )
+        remove_arg_btn.clicked.connect(lambda: self._remove_selected_rows(self.args_table))
         args_btn_layout.addWidget(add_arg_btn)
         args_btn_layout.addWidget(remove_arg_btn)
 
@@ -91,24 +83,16 @@ class ServerEditorDialog(QDialog):
         self.env_table = QTableWidget()
         self.env_table.setColumnCount(2)
         self.env_table.setHorizontalHeaderLabels(["Variable", "Value"])
-        self.env_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-        self.env_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Stretch
-        )
-        self.env_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
+        self.env_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.env_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.env_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._populate_table(self.env_table, list(self.config.env_vars.items()))
 
         env_btn_layout = QHBoxLayout()
         add_env_btn = QPushButton("Add Variable")
         add_env_btn.clicked.connect(lambda: self._add_table_row(self.env_table, 2))
         remove_env_btn = QPushButton("Remove Selected")
-        remove_env_btn.clicked.connect(
-            lambda: self._remove_selected_rows(self.env_table)
-        )
+        remove_env_btn.clicked.connect(lambda: self._remove_selected_rows(self.env_table))
         env_btn_layout.addWidget(add_env_btn)
         env_btn_layout.addWidget(remove_env_btn)
 
