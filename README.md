@@ -1,22 +1,12 @@
 # MCP Manager
 
-A desktop application for managing Model Context Protocol (MCP) servers with an intuitive graphical interface.
+A desktop application for managing Model Context Protocol (MCP) servers with a graphical interface.
 
 ![MCP Manager Screenshot](assets/screenshot.png)
 
 ## Overview
 
-MCP Manager simplifies the process of configuring, starting, stopping, and monitoring multiple MCP servers from a single interface. Built with Python and PyQt6, it provides real-time status monitoring, configuration management, and log viewing capabilities.
-
-## Features
-
-- 🖥️ **Visual Server Management**: Intuitive GUI for managing all your MCP servers
-- 🔄 **Real-time Status Monitoring**: Live status updates for each server
-- 🛠️ **Advanced Configuration**: Full control over server commands, arguments, and environment variables
-- 📋 **JSON Import/Export**: Easily share configurations between team members
-- 🔍 **Direct JSON Editing**: Advanced users can edit configurations directly in JSON
-- 📜 **Server Log Viewing**: Monitor server output in real-time
-- 🧬 **Clone Servers**: Duplicate existing server configurations with one click
+MCP Manager simplifies the process of configuring, starting, stopping, and monitoring multiple MCP servers from a single interface.
 
 ## Installation
 
