@@ -22,7 +22,7 @@ MCP Manager simplifies the process of configuring, starting, stopping, and monit
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.11 or higher
 - [uv](https://github.com/astral-sh/uv) (recommended for dependency management)
 
 ### Using uv (recommended)
@@ -33,28 +33,10 @@ git clone https://github.com/your-username/mcp-manager.git
 cd mcp-manager
 
 # Install dependencies
-uv sync
+make install
 
 # Run the application
-uv run python mcp_manager.py
-```
-
-### Using pip
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/mcp-manager.git
-cd mcp-manager
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
-
-# Run the application
-python mcp_manager.py
+make run
 ```
 
 ## Usage
@@ -80,57 +62,6 @@ Server configurations are stored in `mcp_servers.json` in the application direct
 - Use the built-in JSON editor (View JSON button)
 - Import/export configurations using the JSON import/export features
 
-## Development
-
-### Project Structure
-
-```
-mcp-manager/
-├── mcp_manager.py       # Main application
-├── models.py            # Data models
-├── process_manager.py   # Server process management
-├── server_editor_dialog.py  # Server configuration dialog
-├── log_viewer_dialog.py # Log viewer dialog
-├── json_io.py           # JSON import/export utilities
-├── ui_styles.py         # Application styling
-├── mcp_servers.json     # Server configurations (auto-generated)
-├── USER_GUIDE.md        # User documentation
-└── README.md            # This file
-```
-
-### Dependencies
-
-- PyQt6: GUI framework
-- Additional dependencies are listed in `pyproject.toml`
-
-### Building
-
-To create a standalone executable, you can use PyInstaller:
-
-```bash
-# Install PyInstaller
-pip install pyinstaller
-
-# Create executable
-pyinstaller --onefile --windowed mcp_manager.py
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [Model Context Protocol](https://modelcontextprotocol.io) for the specification
-- PyQt6 for the GUI framework
-- All contributors to this project
