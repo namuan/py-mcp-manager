@@ -19,8 +19,8 @@ MCP Manager simplifies the process of configuring, starting, stopping, and monit
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/mcp-manager.git
-cd mcp-manager
+git clone https://github.com/namuan/py-mcp-manager.git
+cd py-mcp-manager
 
 # Install dependencies
 make install
