@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 from models import ServerConfig
 from process_manager import ProcessManager
 from server_editor_dialog import ServerEditorDialog
+from toast import ToastConfig, ToastManager
 
 
 class ServerListItemWidget(QWidget):
@@ -305,6 +306,12 @@ class MCPManagerWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
+        # Initialize a status bar for inline notifications
+        self.statusBar()  # ensures QStatusBar exists
+
+        # Toast manager routed to the status bar (non-blocking notifications)
+        self.toasts = ToastManager(self, ToastConfig(duration_ms=3500, position="status-bar", max_queue=100))
+
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -491,6 +498,7 @@ class MCPManagerWindow(QMainWindow):
                 "Server Running",
                 "Stop the server before editing its configuration.",
             )
+            self.toasts.info("Stop the server before editing its configuration")
             return
         # Duplicate ID check (allow unchanged ID)
         if updated_config.id != server.id and any(s.id == updated_config.id for s in self.servers):
@@ -499,6 +507,7 @@ class MCPManagerWindow(QMainWindow):
                 "Duplicate ID",
                 f"A server with ID '{updated_config.id}' already exists.",
             )
+            self.toasts.warning(f"Duplicate ID: '{updated_config.id}' already exists")
             return
         # Preserve runtime status
         updated_config.status = server.status
@@ -516,6 +525,7 @@ class MCPManagerWindow(QMainWindow):
             self.selected_server_id = new_id
         # Save and refresh UI
         self._save_servers_to_file()
+        self.toasts.success("Configuration saved")
         self._populate_server_list()
         # Reselect updated server
         for i in range(self.server_list.count()):
@@ -533,6 +543,7 @@ class MCPManagerWindow(QMainWindow):
             return
         self.process_manager.clear_logs(self.selected_server_id)
         self.log_display.clear()
+        self.toasts.info("Logs cleared")
 
     def _find_server_by_id(self, server_id):
         return next((s for s in self.servers if s.id == server_id), None)
@@ -546,7 +557,11 @@ class MCPManagerWindow(QMainWindow):
         self._show_logs_for_server_id(self.selected_server_id)
         server = self._find_server_by_id(self.selected_server_id)
         if server and server.status == "offline":
-            self.process_manager.start_server(server)
+            ok = self.process_manager.start_server(server)
+            if ok:
+                self.toasts.info(f"Starting '{server.name}'...")
+            else:
+                self.toasts.error(f"Failed to start '{server.name}'")
 
     def _on_stop_clicked(self):
         if not self.selected_server_id:
@@ -557,7 +572,11 @@ class MCPManagerWindow(QMainWindow):
         self._show_logs_for_server_id(self.selected_server_id)
         server = self._find_server_by_id(self.selected_server_id)
         if server and server.status != "offline":
-            self.process_manager.stop_server(server.id)
+            ok = self.process_manager.stop_server(server.id)
+            if ok:
+                self.toasts.info(f"Stopping '{server.name}'...")
+            else:
+                self.toasts.warning(f"Could not stop '{server.name}'")
 
     def _on_delete_clicked(self):
         if not self.selected_server_id:
@@ -585,6 +604,7 @@ class MCPManagerWindow(QMainWindow):
             self._populate_server_list()
             # Clear logs view if deleted server was selected
             self.log_display.clear()
+            self.toasts.success(f"Deleted server '{server.name}'")
 
     def _update_controls_enabled(self):
         has_selection = self.selected_server_id is not None
@@ -678,9 +698,11 @@ class MCPManagerWindow(QMainWindow):
                     "Duplicate ID",
                     f"A server with ID '{new_config.id}' already exists.",
                 )
+                self.toasts.warning(f"Duplicate ID: '{new_config.id}' already exists")
                 return
             self.servers.append(new_config)
             self._save_servers_to_file()
+            self.toasts.success(f"Added server '{new_config.name or new_config.id}'")
             # Refresh list and select the newly added server
             self._populate_server_list()
             # Find and select the new item
@@ -695,6 +717,7 @@ class MCPManagerWindow(QMainWindow):
         if not self.selected_server_id:
             print("[DEBUG] Clone attempt with no server selected")
             QMessageBox.information(self, "No Server Selected", "Please select a server to clone.")
+            self.toasts.info("Select a server to clone")
             return
 
         server = self._find_server_by_id(self.selected_server_id)
@@ -736,6 +759,7 @@ class MCPManagerWindow(QMainWindow):
                 self.server_list.setCurrentRow(i)
                 print(f"[DEBUG] Selected cloned server in UI: {new_id}")
                 break
+        self.toasts.success(f"Cloned server to '{new_config.name}' (ID: {new_id})")
 
     def _check_statuses(self):
         """Check status of all servers"""
@@ -793,6 +817,7 @@ class MCPManagerWindow(QMainWindow):
     def _handle_server_error(self, server_id, error):
         """Handle server errors without showing alerts"""
         print(f"Server {server_id} error: {error}")
+        # Do not surface log-driven errors to status bar; only UI actions should update status
         self._update_server_status(server_id, "error")
         # Error is already stored in ProcessManager logs by _handle_stderr
         # Just emit the logs_updated signal
